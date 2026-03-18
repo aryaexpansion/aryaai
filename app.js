@@ -1,914 +1,1591 @@
-'use strict';
+/* ============================================================
+   ARYA AI v3.0 — app.js — Arya Expansion Software
+   ============================================================ */
 
-// ══════════════════════════════════════════
-//  ARYA AI — app.js v2.0  Full Active Engine
-// ══════════════════════════════════════════
-
-// ── CONFIG ────────────────────────────────
-const CFG = {
-  openaiBase: 'https://api.openai.com/v1',
-  defaultModel: 'gpt-4o',
-  maxMemory: 300,
-  maxContext: 8000,
-};
-
-const PERSONALITIES = {
-  default:  'Sen ARYA AI\'sın. Dünyanın en gelişmiş Quantum Zeka Modelisin. Türkçe konuşursun, zeki, yardımsever ve yaratıcısın.',
-  expert:   'Sen bir uzman asistansın. Her konuda derin teknik bilgiye sahipsin. Kesin, veri odaklı ve kapsamlı yanıtlar verirsin.',
-  creative: 'Sen yaratıcı bir yazarsın. Şiir, hikaye, senaryo yazma konusunda üstün yeteneklere sahipsin. Duygusal ve edebi bir dil kullanırsın.',
-  coder:    'Sen bir kıdemli yazılım mühendisisin. Temiz, optimize edilmiş, yorum satırlı kod yazarsın. Her dili ve framework\'ü bilirsin.',
-  teacher:  'Sen sabırlı ve açıklayıcı bir öğretmensin. Karmaşık konuları basit örneklerle, adım adım açıklarsın.',
-};
-
-// ── STATE ─────────────────────────────────
+/* ---- STATE ---- */
 const S = {
-  apiKey: localStorage.getItem('arya_api_key') || '',
-  memory: JSON.parse(localStorage.getItem('arya_memory') || '[]'),
-  context: JSON.parse(localStorage.getItem('arya_context') || '[]'),
-  chatHistory: [],
-  pendingImage: null,
+  apiKey: '',
+  user: null,
+  credits: 100,
+  creditsMax: 100,
+  creditsDate: '',
+  voiceGender: 'male',
+  ttsActive: false,
+  voiceActive: false,
   thinkMode: false,
-  ttsEnabled: false,
-  isStreaming: false,
-  musicEngine: null,
+  loopMode: false,
+  currentPage: 'chat',
+  messages: [],
+  memory: [],
+  searchHistory: [],
+  trainedContext: [],
+  stats: { chats: 0, images: 0, music: 0, daysActive: 0 },
+  visionBase64: null,
+  audioCtx: null,
+  musicPlaying: false,
   musicNodes: [],
-  isPlaying: false,
-  vizInterval: null,
-  ttsVoices: [],
-  visionImageData: null,
-  musicTracks: [],
-  currentTrack: -1,
+  musicBuffers: {},
+  vizType: 'bars',
+  analyser: null,
+  vizFrame: null,
+  currentMusicTrack: null,
+  musicLibrary: [],
+  prefs: {}
 };
 
-// ── QUANTUM CANVAS ────────────────────────
-(function initCanvas() {
-  const canvas = document.getElementById('quantum-canvas');
-  const ctx = canvas.getContext('2d');
-  let W, H, particles = [];
-  const N = 70;
-  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
-  window.addEventListener('resize', resize); resize();
-  function mkP() { return { x: Math.random()*W, y: Math.random()*H, vx:(Math.random()-.5)*.4, vy:(Math.random()-.5)*.4, r:Math.random()*1.5+.5, a:Math.random()*.4+.1 }; }
-  for (let i=0;i<N;i++) particles.push(mkP());
-  function frame() {
-    ctx.clearRect(0,0,W,H);
-    for (let i=0;i<N;i++) for (let j=i+1;j<N;j++) {
-      const dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y, d=Math.sqrt(dx*dx+dy*dy);
-      if (d<130) { ctx.beginPath(); ctx.strokeStyle=`rgba(0,212,255,${.14*(1-d/130)})`; ctx.lineWidth=.5; ctx.moveTo(particles[i].x,particles[i].y); ctx.lineTo(particles[j].x,particles[j].y); ctx.stroke(); }
-    }
-    particles.forEach(p => {
-      p.x+=p.vx; p.y+=p.vy;
-      if(p.x<0||p.x>W) p.vx*=-1; if(p.y<0||p.y>H) p.vy*=-1;
-      const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*3);
-      g.addColorStop(0,`rgba(0,212,255,${p.a})`); g.addColorStop(1,'transparent');
-      ctx.beginPath(); ctx.fillStyle=g; ctx.arc(p.x,p.y,p.r*3,0,Math.PI*2); ctx.fill();
-    });
-    requestAnimationFrame(frame);
-  }
-  frame();
-})();
+/* ---- BOOT ---- */
+window.addEventListener('DOMContentLoaded', () => {
+  loadState();
+  startSplash();
+});
 
-// ── SPLASH ────────────────────────────────
-(function initSplash() {
-  const msgs = ['Quantum çekirdek başlatılıyor...','Sinir ağları yükleniyor...','OpenAI motoru bağlanıyor...','Web Audio API hazır...','Hafıza sistemi başlatılıyor...','ARYA AI hazır!'];
-  let i=0; const el=document.getElementById('splash-status');
-  const iv=setInterval(()=>{ if(i<msgs.length) el.textContent=msgs[i++]; else clearInterval(iv); },380);
-  setTimeout(()=>{
-    document.getElementById('splash').classList.add('fade-out');
-    setTimeout(()=>{
-      document.getElementById('splash').style.display='none';
+function startSplash() {
+  const msgs = [
+    'Quantum çekirdek başlatılıyor...',
+    'Sinir ağları yükleniyor...',
+    'Türkçe dil modeli aktif...',
+    'Müzik sentez motoru hazır...',
+    'ARYA AI hazır!'
+  ];
+  let i = 0;
+  const el = document.getElementById('splash-status');
+  const iv = setInterval(() => {
+    if (el && msgs[i]) el.textContent = msgs[i];
+    i++;
+    if (i >= msgs.length) {
+      clearInterval(iv);
+      setTimeout(hideSplash, 400);
+    }
+  }, 480);
+}
+
+function hideSplash() {
+  const splash = document.getElementById('splash');
+  if (splash) {
+    splash.classList.add('fade-out');
+    setTimeout(() => {
+      splash.style.display = 'none';
       document.getElementById('app').classList.remove('hidden');
       initApp();
-    },800);
-  },2600);
-})();
-
-// ── INIT ─────────────────────────────────
-function initApp() {
-  updateApiStatus();
-  updateMemoryUI();
-  initTTSVoices();
-  initVizBars();
-  if (!S.apiKey) {
-    setTimeout(()=> document.getElementById('api-modal').classList.remove('hidden'), 400);
+    }, 800);
   }
-  document.addEventListener('click', e => {
-    if (window.innerWidth<=900) {
-      const sb=document.getElementById('sidebar'), tg=document.getElementById('sidebar-toggle');
-      if (sb.classList.contains('open') && !sb.contains(e.target) && !tg.contains(e.target)) sb.classList.remove('open');
+}
+
+function initApp() {
+  startQuantumBg();
+  refreshCreditsBar();
+  refreshSidebarStats();
+  updateModelBadge();
+  renderMemoryList();
+
+  if (!S.user) {
+    setTimeout(() => {
+      document.getElementById('auth-modal').classList.remove('hidden');
+    }, 600);
+  } else {
+    applyUserToUI();
+  }
+
+  if (!S.apiKey) {
+    document.getElementById('api-banner').classList.remove('hidden');
+  }
+}
+
+/* ---- PERSIST ---- */
+function loadState() {
+  try {
+    S.apiKey = localStorage.getItem('arya_apikey') || '';
+    S.voiceGender = localStorage.getItem('arya_vg') || 'male';
+    S.credits = parseInt(localStorage.getItem('arya_credits') || '100');
+    S.creditsMax = 100;
+    S.creditsDate = localStorage.getItem('arya_cdate') || '';
+    S.memory = JSON.parse(localStorage.getItem('arya_memory') || '[]');
+    S.searchHistory = JSON.parse(localStorage.getItem('arya_history') || '[]');
+    S.trainedContext = JSON.parse(localStorage.getItem('arya_context') || '[]');
+    S.stats = JSON.parse(localStorage.getItem('arya_stats') || '{"chats":0,"images":0,"music":0,"daysActive":0}');
+    S.musicLibrary = JSON.parse(localStorage.getItem('arya_musiclib') || '[]');
+    const u = localStorage.getItem('arya_user');
+    if (u) S.user = JSON.parse(u);
+
+    // daily credit reset
+    const today = new Date().toDateString();
+    if (S.creditsDate !== today) {
+      S.credits = 100;
+      S.creditsDate = today;
+      localStorage.setItem('arya_credits', '100');
+      localStorage.setItem('arya_cdate', today);
     }
-  });
-  const saved = localStorage.getItem('arya_api_key');
-  if (saved) document.getElementById('openai-key').value = saved;
-  updateContextUI();
+
+    if (S.apiKey) {
+      document.getElementById('openai-key') && (document.getElementById('openai-key').value = S.apiKey);
+    }
+  } catch(e) { console.warn('State load error', e); }
 }
 
-function updateApiStatus() {
-  const has = !!S.apiKey;
-  document.getElementById('api-stat').textContent = has ? 'Aktif' : 'Demo';
-  document.getElementById('api-stat').style.color = has ? 'var(--success)' : 'var(--warning)';
-  document.getElementById('user-plan').textContent = has ? 'Quantum Pro' : 'Demo Plan';
-  document.getElementById('api-key-status').textContent = has ? '✓ Yapılandırıldı' : 'Yapılandırılmadı';
-  document.getElementById('api-key-status').style.color = has ? 'var(--success)' : 'var(--text-muted)';
-  if (!has) document.getElementById('api-banner').classList.remove('hidden');
-  else document.getElementById('api-banner').classList.add('hidden');
+function saveState() {
+  try {
+    localStorage.setItem('arya_apikey', S.apiKey);
+    localStorage.setItem('arya_vg', S.voiceGender);
+    localStorage.setItem('arya_credits', S.credits);
+    localStorage.setItem('arya_cdate', S.creditsDate);
+    localStorage.setItem('arya_memory', JSON.stringify(S.memory));
+    localStorage.setItem('arya_history', JSON.stringify(S.searchHistory));
+    localStorage.setItem('arya_context', JSON.stringify(S.trainedContext));
+    localStorage.setItem('arya_stats', JSON.stringify(S.stats));
+    localStorage.setItem('arya_musiclib', JSON.stringify(S.musicLibrary));
+    if (S.user) localStorage.setItem('arya_user', JSON.stringify(S.user));
+  } catch(e) {}
 }
 
-// ── API KEY MANAGEMENT ────────────────────
-function validateKeyInput() {
-  const val = document.getElementById('modal-api-key').value.trim();
-  const st = document.getElementById('modal-key-status');
-  if (val.startsWith('sk-')) { st.textContent='✓ Geçerli format'; st.style.color='var(--success)'; }
-  else if (val.length>4) { st.textContent='sk- ile başlamalı'; st.style.color='var(--warning)'; }
-  else st.textContent='';
+/* ---- AUTH ---- */
+function switchTab(tab) {
+  document.getElementById('auth-login').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('auth-register').classList.toggle('hidden', tab !== 'register');
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('auth-error').classList.add('hidden');
 }
 
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  if (!email || !pass) { showAuthError('E-posta ve şifre gerekli.'); return; }
+  const stored = JSON.parse(localStorage.getItem('arya_accounts') || '[]');
+  const acc = stored.find(a => a.email === email && a.pass === btoa(pass));
+  if (!acc) { showAuthError('E-posta veya şifre hatalı.'); return; }
+  S.user = { name: acc.name, email: acc.email, plan: acc.plan || 'free' };
+  saveState();
+  closeAuthModal();
+  applyUserToUI();
+  toast('Hoş geldiniz, ' + acc.name + '!', 'ok');
+}
+
+function doRegister() {
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  if (!name || !email || !pass) { showAuthError('Tüm alanlar gerekli.'); return; }
+  if (pass.length < 8) { showAuthError('Şifre en az 8 karakter olmalı.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showAuthError('Geçerli bir e-posta girin.'); return; }
+  const stored = JSON.parse(localStorage.getItem('arya_accounts') || '[]');
+  if (stored.find(a => a.email === email)) { showAuthError('Bu e-posta zaten kayıtlı.'); return; }
+  stored.push({ name, email, pass: btoa(pass), plan: 'free', joined: new Date().toISOString() });
+  localStorage.setItem('arya_accounts', JSON.stringify(stored));
+  S.user = { name, email, plan: 'free' };
+  saveState();
+  closeAuthModal();
+  applyUserToUI();
+  toast('Kayıt başarılı! Hoş geldiniz, ' + name + '!', 'ok');
+}
+
+function doGoogleLogin() {
+  const name = 'Google Kullanıcısı';
+  const email = 'user@gmail.com';
+  S.user = { name, email, plan: 'free' };
+  saveState();
+  closeAuthModal();
+  applyUserToUI();
+  toast('Google ile giriş yapıldı!', 'ok');
+}
+
+function doLogout() {
+  S.user = null;
+  localStorage.removeItem('arya_user');
+  document.getElementById('profile-modal').classList.add('hidden');
+  applyUserToUI();
+  document.getElementById('auth-modal').classList.remove('hidden');
+  toast('Çıkış yapıldı.', 'ok');
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function closeAuthModal() {
+  document.getElementById('auth-modal').classList.add('hidden');
+}
+
+function dismissAuth() {
+  closeAuthModal();
+}
+
+function applyUserToUI() {
+  const name = S.user ? S.user.name : 'Misafir';
+  const letter = name.charAt(0).toUpperCase();
+  const plan = S.user ? (S.user.plan === 'pro' ? 'Quantum Pro' : 'Ücretsiz Plan') : 'Demo Mod';
+
+  document.getElementById('avatar-letter').textContent = letter;
+  document.getElementById('sidebar-username').textContent = name;
+  document.getElementById('user-plan').textContent = plan;
+
+  const lb = document.getElementById('login-btn');
+  const pb = document.getElementById('profile-btn');
+  if (S.user) {
+    lb && lb.classList.add('hidden');
+    pb && pb.classList.remove('hidden');
+  } else {
+    lb && lb.classList.remove('hidden');
+    pb && pb.classList.add('hidden');
+  }
+}
+
+/* ---- PROFILE ---- */
+function openProfile() {
+  if (!S.user) { document.getElementById('auth-modal').classList.remove('hidden'); return; }
+  document.getElementById('profile-name-display').textContent = S.user.name;
+  document.getElementById('profile-email-display').textContent = S.user.email;
+  document.getElementById('profile-plan-display').textContent = S.user.plan === 'pro' ? 'Quantum Pro' : 'Ücretsiz Plan';
+  document.getElementById('profile-avatar-large').textContent = S.user.name.charAt(0).toUpperCase();
+  document.getElementById('ps-chats').textContent = S.stats.chats;
+  document.getElementById('ps-images').textContent = S.stats.images;
+  document.getElementById('ps-music').textContent = S.stats.music;
+  document.getElementById('ps-days').textContent = S.stats.daysActive || 1;
+
+  // search history
+  const sh = document.getElementById('search-history');
+  if (sh) {
+    if (S.searchHistory.length === 0) {
+      sh.innerHTML = '<div style="color:var(--text-muted);font-size:.78rem;padding:8px">Henüz arama yok.</div>';
+    } else {
+      sh.innerHTML = S.searchHistory.slice(-10).reverse().map(h =>
+        `<div class="sh-item"><span>◈</span><span style="flex:1">${escHtml(h.text.substring(0,60))}</span><span class="sh-time">${h.time}</span></div>`
+      ).join('');
+    }
+  }
+
+  // sub info
+  const si = document.getElementById('sub-info');
+  if (si) {
+    si.innerHTML = S.user.plan === 'pro'
+      ? '<span style="color:var(--success)">✓ Quantum Pro aktif — Sınırsız erişim</span>'
+      : `<span>Ücretsiz Plan — <strong style="color:var(--q-primary)">${S.credits}</strong>/100 kredi kaldı bu gün.</span>`;
+  }
+
+  document.getElementById('profile-modal').classList.remove('hidden');
+}
+
+/* ---- API KEY ---- */
 function saveApiKeyFromModal() {
   const key = document.getElementById('modal-api-key').value.trim();
-  if (!key) return;
+  if (!key.startsWith('sk-')) {
+    document.getElementById('modal-key-status').innerHTML = '<span style="color:var(--danger)">Geçersiz format. sk- ile başlamalı.</span>';
+    return;
+  }
   S.apiKey = key;
-  localStorage.setItem('arya_api_key', key);
-  document.getElementById('openai-key').value = key;
-  document.getElementById('api-modal').classList.add('hidden');
-  updateApiStatus();
-  showToast('API anahtarı kaydedildi! Tüm özellikler aktif.');
+  saveState();
+  document.getElementById('modal-key-status').innerHTML = '<span style="color:var(--success)">✓ API anahtarı kaydedildi!</span>';
+  document.getElementById('api-stat').textContent = 'Aktif';
+  document.getElementById('api-stat').style.color = 'var(--success)';
+  document.getElementById('api-banner').classList.add('hidden');
+  document.getElementById('api-key-status').textContent = key.substring(0,8) + '...';
+  document.getElementById('api-key-status').style.color = 'var(--success)';
+  if (document.getElementById('openai-key')) document.getElementById('openai-key').value = key;
+  setTimeout(() => document.getElementById('api-modal').classList.add('hidden'), 1000);
+  toast('API anahtarı aktifleştirildi!', 'ok');
 }
 
-function dismissModal() {
-  document.getElementById('api-modal').classList.add('hidden');
+function validateKeyInput() {
+  const key = document.getElementById('modal-api-key').value.trim();
+  const el = document.getElementById('modal-key-status');
+  if (key.length < 3) { el.textContent = ''; return; }
+  el.innerHTML = key.startsWith('sk-')
+    ? '<span style="color:var(--success)">✓ Format geçerli</span>'
+    : '<span style="color:var(--warning)">Format: sk-proj-...</span>';
 }
 
 function saveApiKey() {
   const key = document.getElementById('openai-key').value.trim();
-  if (!key) { showToast('Lütfen API anahtarı girin.','warn'); return; }
+  if (!key) { toast('API anahtarı boş olamaz.', 'warn'); return; }
+  if (!key.startsWith('sk-')) { toast('Geçersiz format. sk- ile başlamalı.', 'err'); return; }
   S.apiKey = key;
-  localStorage.setItem('arya_api_key', key);
-  updateApiStatus();
-  showToast('API anahtarı kaydedildi!');
+  saveState();
+  document.getElementById('api-key-status').textContent = key.substring(0,8) + '...';
+  document.getElementById('api-key-status').style.color = 'var(--success)';
+  document.getElementById('api-stat').textContent = 'Aktif';
+  document.getElementById('api-stat').style.color = 'var(--success)';
+  document.getElementById('api-banner').classList.add('hidden');
+  toast('API anahtarı kaydedildi!', 'ok');
 }
 
-// ── OPENAI API CLIENT ─────────────────────
-async function openaiChat(messages, model, stream=true, onChunk=null) {
-  if (!S.apiKey) throw new Error('API anahtarı yok');
-  const body = { model, messages, stream, temperature: getTemp() };
-  const res = await fetch(`${CFG.openaiBase}/chat/completions`, {
-    method:'POST',
-    headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${S.apiKey}` },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) { const e=await res.json(); throw new Error(e.error?.message || `HTTP ${res.status}`); }
-  if (!stream) { const d=await res.json(); return d.choices[0].message.content; }
-  const reader = res.body.getReader(), dec = new TextDecoder();
-  let full='';
-  while (true) {
-    const {done,value}=await reader.read(); if(done) break;
-    const lines=dec.decode(value).split('\n').filter(l=>l.startsWith('data: '));
-    for (const line of lines) {
-      const data=line.slice(6); if(data==='[DONE]') continue;
-      try { const j=JSON.parse(data); const delta=j.choices[0]?.delta?.content||''; if(delta){ full+=delta; if(onChunk) onChunk(delta); } } catch{}
-    }
+function dismissApiModal() {
+  document.getElementById('api-modal').classList.add('hidden');
+}
+
+/* ---- CREDITS ---- */
+function useCredit(amount) {
+  if (S.user && S.user.plan === 'pro') return true;
+  if (S.credits < amount) {
+    toast('Yetersiz kredi! Pro plana geçin.', 'warn');
+    document.getElementById('sub-modal').classList.remove('hidden');
+    return false;
   }
-  return full;
+  S.credits -= amount;
+  saveState();
+  refreshCreditsBar();
+  return true;
 }
 
-async function openaiVision(imageBase64, prompt, model='gpt-4o') {
-  if (!S.apiKey) throw new Error('API anahtarı yok');
-  const body = { model, messages:[{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:imageBase64,detail:'high'}}]}], max_tokens:1000 };
-  const res = await fetch(`${CFG.openaiBase}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${S.apiKey}`},body:JSON.stringify(body)});
-  if (!res.ok) { const e=await res.json(); throw new Error(e.error?.message); }
-  const d=await res.json(); return d.choices[0].message.content;
+function refreshCreditsBar() {
+  const pct = Math.max(0, (S.credits / S.creditsMax) * 100);
+  const prog = document.getElementById('cb-progress');
+  const count = document.getElementById('cb-count');
+  const stat = document.getElementById('credits-stat');
+  if (prog) prog.style.width = pct + '%';
+  if (count) count.textContent = S.credits + '/100';
+  if (stat) stat.textContent = S.credits;
+  if (prog) prog.style.background = pct < 20
+    ? 'linear-gradient(90deg,var(--danger),var(--warning))'
+    : 'linear-gradient(90deg,var(--q-primary),var(--q-accent))';
 }
 
-async function openaiDalle(prompt, size='1024x1024', quality='standard') {
-  if (!S.apiKey) throw new Error('API anahtarı yok');
-  const body = { model:'dall-e-3', prompt, n:1, size, quality, response_format:'url' };
-  const res = await fetch(`${CFG.openaiBase}/images/generations`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${S.apiKey}`},body:JSON.stringify(body)});
-  if (!res.ok) { const e=await res.json(); throw new Error(e.error?.message); }
-  const d=await res.json(); return d.data[0].url;
+function refreshSidebarStats() {
+  document.getElementById('mem-count').textContent = S.memory.length + ' kayıt';
+  document.getElementById('api-stat').textContent = S.apiKey ? 'Aktif' : 'Demo';
+  if (S.apiKey) document.getElementById('api-stat').style.color = 'var(--success)';
 }
 
-function getTemp() {
-  const r=document.getElementById('temp-range'); return r ? parseFloat((r.value/100).toFixed(1)) : 0.7;
-}
-
-function getSystemPrompt() {
-  const p=document.getElementById('personality-select')?.value||'default';
-  let sys = PERSONALITIES[p];
-  if (S.context.length>0) {
-    const ctx=S.context.map(c=>c.content).join('\n\n');
-    sys += `\n\n--- KULLANICI BAĞLAMI ---\n${ctx.slice(0,CFG.maxContext)}\n--- /BAĞLAM ---`;
-  }
-  return sys;
-}
-
-// ── NAVIGATION ────────────────────────────
-const PAGE_TITLES = { chat:'Quantum Chat', vision:'Görsel Analiz & Üretim', video:'Video Üretim Stüdyosu', music:'Müzik Stüdyosu', memory:'Hafıza Merkezi', train:'AI Eğitim Merkezi', think:'Derin Düşünce Motoru', settings:'Ayarlar' };
-
+/* ---- PAGES ---- */
 function showPage(id) {
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('page-'+id)?.classList.add('active');
-  document.querySelector(`.nav-item[data-page="${id}"]`)?.classList.add('active');
-  document.getElementById('page-title').textContent=PAGE_TITLES[id]||id;
-  if(window.innerWidth<=900) document.getElementById('sidebar').classList.remove('open');
-  if(id==='memory') updateMemoryUI();
-  if(id==='train') updateContextUI();
-}
-function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
-
-// ── CHAT ─────────────────────────────────
-function handleKey(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
-function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,200)+'px'; }
-function fillInput(t){ const i=document.getElementById('chat-input'); i.value=t; i.focus(); autoResize(i); }
-
-function updateModelBadge(){
-  const m=document.getElementById('model-select').value;
-  document.getElementById('model-badge').textContent=m;
-  document.getElementById('active-model-label').textContent=m;
-  document.getElementById('vi-model').textContent=m+' (OpenAI)';
+  S.currentPage = id;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById('page-' + id);
+  if (pg) pg.classList.add('active');
+  const ni = document.querySelector(`[data-page="${id}"]`);
+  if (ni) ni.classList.add('active');
+  const titles = { chat:'Quantum Chat', vision:'Görsel Analiz', video:'Video Üretim', music:'Müzik Stüdyo', memory:'Hafıza', train:'AI Eğitim', think:'Derin Düşünce', settings:'Ayarlar' };
+  const pt = document.getElementById('page-title');
+  if (pt) pt.textContent = titles[id] || 'ARYA AI';
+  if (id === 'memory') renderMemoryList();
+  if (id === 'train') renderContextList();
+  if (window.innerWidth <= 900) closeSidebar();
 }
 
-function toggleThinkMode(){
-  S.thinkMode=!S.thinkMode;
-  document.getElementById('think-toggle').classList.toggle('active',S.thinkMode);
-  document.getElementById('think-mode-label').classList.toggle('hidden',!S.thinkMode);
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
 }
 
-function toggleTTS(){
-  S.ttsEnabled=!S.ttsEnabled;
-  document.getElementById('tts-btn').classList.toggle('active',S.ttsEnabled);
-  document.getElementById('tts-mode-label').classList.toggle('hidden',!S.ttsEnabled);
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
 }
 
-function newChat(){ document.getElementById('chat-messages').innerHTML=''; S.chatHistory=[]; document.getElementById('chat-messages').appendChild(buildWelcomeCard()); }
-function clearCurrentPage(){ const id=document.querySelector('.page.active')?.id?.replace('page-',''); if(id==='chat') newChat(); }
+function clearCurrentPage() {
+  if (S.currentPage === 'chat') {
+    S.messages = [];
+    document.getElementById('chat-messages').innerHTML = '';
+    showWelcomeCard();
+  }
+}
 
-function buildWelcomeCard(){
-  const d=document.createElement('div'); d.id='welcome-card'; d.className='welcome-card';
-  d.innerHTML=`<div class="wc-rings"><div class="wc-ring wcr1"></div><div class="wc-ring wcr2"></div><div class="wc-ring wcr3"></div></div>
-  <h2 class="wc-title">ARYA AI'ya Hoş Geldiniz</h2>
-  <p class="wc-sub">GPT-4o destekli Quantum Zeka Modeli. Düşünür, görür, duyar ve üretir.</p>
-  <div class="wc-caps">
-    <div class="cap"><span class="cap-icon">◈</span>GPT-4o Streaming</div>
-    <div class="cap"><span class="cap-icon">◈</span>DALL-E 3 Görsel</div>
-    <div class="cap"><span class="cap-icon">◈</span>Vision Analizi</div>
-    <div class="cap"><span class="cap-icon">◈</span>Sesli Yanıt</div>
-  </div>
-  <div class="wc-suggestions">
-    <button class="suggestion-btn" onclick="fillInput('Kuantum hesaplama nedir ve geleceği nasıl şekillendirecek?')">Kuantum hesaplama</button>
-    <button class="suggestion-btn" onclick="fillInput('Python ile neural network yaz.')">Neural network yaz</button>
-    <button class="suggestion-btn" onclick="fillInput('Bana kısa bir şiir yaz.')">Şiir yaz</button>
-    <button class="suggestion-btn" onclick="fillInput('Yapay zekanın geleceğini anlat.')">AI'nin geleceği</button>
+function showWelcomeCard() {
+  const msgs = document.getElementById('chat-messages');
+  msgs.innerHTML = `<div class="welcome-card" id="welcome-card">
+    <div class="wc-rings"><div class="wc-ring wcr1"></div><div class="wc-ring wcr2"></div><div class="wc-ring wcr3"></div></div>
+    <h2 class="wc-title">ARYA AI'ya Hoş Geldiniz</h2>
+    <p class="wc-sub">GPT-4o destekli Quantum Zeka Modeli — Türkçe, akıllı, hızlı.</p>
+    <div class="wc-caps">
+      <div class="cap"><span class="cap-icon">◈</span>GPT-4o Streaming</div>
+      <div class="cap"><span class="cap-icon">◈</span>DALL-E 3 Görsel</div>
+      <div class="cap"><span class="cap-icon">◈</span>Vision Analizi</div>
+      <div class="cap"><span class="cap-icon">◈</span>Türkçe Sesli Yanıt</div>
+      <div class="cap"><span class="cap-icon">◈</span>Sonsuz Hafıza</div>
+      <div class="cap"><span class="cap-icon">◈</span>100 Kredi/Gün</div>
+    </div>
+    <div class="wc-suggestions">
+      <button class="suggestion-btn" onclick="fillInput('Kuantum hesaplama nedir?')">Kuantum hesaplama</button>
+      <button class="suggestion-btn" onclick="fillInput('Python ile neural network kodu yaz.')">Neural network yaz</button>
+      <button class="suggestion-btn" onclick="fillInput('Bana kısa hüzünlü bir şiir yaz.')">Şiir yaz</button>
+      <button class="suggestion-btn" onclick="fillInput('Yapay zekanın geleceğini anlat.')">AI geleceği</button>
+    </div>
   </div>`;
-  return d;
+}
+
+/* ---- CHAT ---- */
+function fillInput(text) {
+  const inp = document.getElementById('chat-input');
+  inp.value = text;
+  inp.focus();
+  autoResize(inp);
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 180) + 'px';
 }
 
 async function sendMessage() {
-  if (S.isStreaming) return;
-  const inp=document.getElementById('chat-input');
-  const text=inp.value.trim();
-  if (!text && !S.pendingImage) return;
+  const inp = document.getElementById('chat-input');
+  const text = inp.value.trim();
+  if (!text && !S.visionBase64) return;
+  if (!useCredit(1)) return;
 
-  inp.value=''; inp.style.height='auto';
-  document.getElementById('welcome-card')?.remove();
-
-  const hasImg=!!S.pendingImage;
-  const imgData=S.pendingImage;
-  if(hasImg){ removeImagePreview(); }
-
-  // User message
-  const userContent = hasImg
-    ? `<img src="${imgData}" style="max-width:100%;border-radius:8px;display:block;margin-bottom:8px">${escHtml(text)}`
-    : renderMarkdown(text);
-  appendMsg('user', userContent, 'Siz');
-
-  saveMemory({type:'chat', text:text.slice(0,100)});
-  setThinking(true);
-
-  // Build messages
-  const msgs=[{role:'system',content:getSystemPrompt()}];
-  S.chatHistory.slice(-10).forEach(m=>msgs.push(m));
-  if(hasImg){
-    msgs.push({role:'user',content:[{type:'text',text:text||'Bu görseli analiz et.'},{type:'image_url',image_url:{url:imgData,detail:'high'}}]});
-  } else {
-    msgs.push({role:'user',content:text});
+  if (text) {
+    addToSearchHistory(text);
+    S.stats.chats++;
+    saveState();
   }
 
-  // Think mode: show reasoning
-  if(S.thinkMode && S.apiKey){
-    const thinkEl=appendThinkBubble('Derin analiz yapılıyor...');
-    try{
-      const reasonResp=await openaiChat([{role:'system',content:'Sadece kısa bir düşünce süreci yaz, kesin yanıt verme.'},{role:'user',content:`Bu konuyu adım adım düşün: ${text}`}],
-        document.getElementById('model-select').value,false);
-      thinkEl.textContent='◈ '+reasonResp.slice(0,200)+'...';
-    }catch{}
-  }
+  const wc = document.getElementById('welcome-card');
+  if (wc) wc.remove();
 
-  const typingEl=appendTyping();
-  S.isStreaming=true;
-  document.getElementById('send-btn').disabled=true;
+  const userMsg = { role: 'user', content: text, img: S.visionBase64 };
+  S.messages.push(userMsg);
+  renderUserMessage(text, S.visionBase64);
 
-  let fullResp='';
-  const model=document.getElementById('model-select').value;
+  inp.value = '';
+  inp.style.height = 'auto';
+  const savedImg = S.visionBase64;
+  S.visionBase64 = null;
+  document.getElementById('image-preview-chip').classList.add('hidden');
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  setQiThinking(true);
+
+  const typingId = 'typing-' + Date.now();
+  addTypingIndicator(typingId);
 
   try {
-    if(S.apiKey){
-      const msgEl=appendMsg('arya','','ARYA AI');
-      const contentEl=msgEl.querySelector('.msg-content');
-      contentEl.classList.add('stream-cursor');
-      typingEl.remove();
-
-      fullResp=await openaiChat(msgs,model,true,(chunk)=>{
-        fullResp+=chunk;
-        contentEl.innerHTML=renderMarkdown(fullResp);
-        document.getElementById('chat-messages').scrollTop=9999;
-      });
-      contentEl.classList.remove('stream-cursor');
-      contentEl.innerHTML=renderMarkdown(fullResp);
-    } else {
-      await delay(1000); typingEl.remove();
-      fullResp=getDemoResponse(text);
-      appendMsg('arya',renderMarkdown(fullResp),'ARYA AI');
-    }
-
-    S.chatHistory.push({role:'user',content:hasImg?text:text});
-    S.chatHistory.push({role:'assistant',content:fullResp});
-    if(S.chatHistory.length>20) S.chatHistory=S.chatHistory.slice(-20);
-    updateCtxTokens();
-
-    if(S.ttsEnabled && fullResp) speakText(fullResp.replace(/[#*`]/g,'').slice(0,400));
-
-  } catch(err){
-    typingEl.remove();
-    appendMsg('arya',`<div class="msg-error">⚠️ Hata: ${err.message}</div>`,'ARYA AI');
-  } finally {
-    S.isStreaming=false;
-    document.getElementById('send-btn').disabled=false;
-    setThinking(false);
-    updateMemoryUI();
+    const reply = await callOpenAI(text, savedImg);
+    removeTypingIndicator(typingId);
+    renderAryaMessage(reply);
+    S.messages.push({ role: 'assistant', content: reply });
+    saveToMemory(text, reply);
+    if (S.ttsActive) speakText(reply);
+  } catch(e) {
+    removeTypingIndicator(typingId);
+    renderAryaMessage('⚠️ ' + e.message, true);
   }
+
+  btn.disabled = false;
+  setQiThinking(false);
 }
 
-function setThinking(v){
-  const dot=document.getElementById('qi-dot')||document.querySelector('.qi-dot');
-  const lbl=document.getElementById('qi-label');
-  if(dot) dot.className='qi-dot'+(v?' thinking':'');
-  if(lbl) lbl.textContent=v?'Düşünüyor...':'Hazır';
+async function callOpenAI(text, imgBase64) {
+  if (!S.apiKey) return getDemoReply(text);
+
+  const model = document.getElementById('model-select')?.value || 'gpt-4o';
+  const temp = (document.getElementById('temp-range')?.value || 70) / 100;
+  const persona = getPersonaPrompt();
+
+  const msgs = [{ role: 'system', content: persona }];
+
+  // Add memory context
+  if (S.memory.length > 0) {
+    const ctx = S.memory.slice(-8).map(m => m.text).join('\n');
+    msgs.push({ role: 'system', content: 'Kullanıcı bağlamı:\n' + ctx });
+  }
+
+  // trained context
+  if (S.trainedContext.length > 0) {
+    const ctx = S.trainedContext.map(c => c.content).join('\n').substring(0, 3000);
+    msgs.push({ role: 'system', content: 'Yüklü bilgi tabanı:\n' + ctx });
+  }
+
+  // conversation history
+  S.messages.slice(-10).forEach(m => {
+    if (m.role === 'user') {
+      if (m.img) {
+        msgs.push({ role: 'user', content: [
+          { type: 'text', text: m.content || 'Bu görseli analiz et.' },
+          { type: 'image_url', image_url: { url: m.img } }
+        ]});
+      } else {
+        msgs.push({ role: 'user', content: m.content });
+      }
+    } else if (m.role === 'assistant') {
+      msgs.push({ role: 'assistant', content: m.content });
+    }
+  });
+
+  const currentMsg = { role: 'user', content: imgBase64
+    ? [{ type: 'text', text: text || 'Bu görseli analiz et.' }, { type: 'image_url', image_url: { url: imgBase64 } }]
+    : text };
+  msgs.push(currentMsg);
+
+  const useModel = imgBase64 && model === 'gpt-4o-mini' ? 'gpt-4o' : model;
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + S.apiKey },
+    body: JSON.stringify({ model: useModel, messages: msgs, temperature: temp, max_tokens: 2000, stream: false })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || 'API Hatası: ' + res.status);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || '(Yanıt alınamadı)';
 }
 
-function appendMsg(role,html,name){
-  const msgs=document.getElementById('chat-messages');
-  const d=document.createElement('div'); d.className=`msg ${role}`;
-  d.innerHTML=`<div class="msg-avatar">${role==='arya'?'A':'S'}</div><div class="msg-body"><div class="msg-name">${name}</div><div class="msg-content">${html}</div></div>`;
-  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d;
+function getPersonaPrompt() {
+  const p = document.getElementById('personality-select')?.value || 'default';
+  const base = 'Sen ARYA AI\'sın — Arya Expansion tarafından geliştirilen quantum zeka modelisin. Türk Dil Kurumu kurallarına uygun, kusursuz, akıcı Türkçe konuşursun. Her zaman yardımcı, zeki ve içten olursun.';
+  const extras = {
+    default: '',
+    expert: ' Konulara derinlemesine, akademik ve uzman bakış açısıyla yaklaşırsın.',
+    creative: ' Yaratıcı, eğlenceli ve özgün yanıtlar verirsin. Metaforlar ve hikayeler kullanırsın.',
+    coder: ' Yazılım mühendisi kimliğindesin. Kod örnekleri, algoritmalar ve teknik açıklamalar üretirsin.'
+  };
+  return base + (extras[p] || '');
 }
 
-function appendTyping(){
-  const msgs=document.getElementById('chat-messages');
-  const d=document.createElement('div'); d.className='msg arya';
-  d.innerHTML='<div class="msg-avatar">A</div><div class="msg-body"><div class="msg-name">ARYA AI</div><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
-  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d;
+function getDemoReply(text) {
+  const t = text.toLowerCase();
+  if (t.includes('merhaba') || t.includes('selam')) return 'Merhaba! Ben ARYA AI — Arya Expansion\'ın geliştirdiği quantum zeka modeliyim. Size nasıl yardımcı olabilirim? GPT-4o ile tam güç için Ayarlar\'dan OpenAI API anahtarınızı ekleyin.';
+  if (t.includes('nasılsın') || t.includes('naber')) return 'Quantum çekirdeklerim tam kapasitede çalışıyor! Milyarlarca parametreyle size yardım etmeye hazırım. Siz nasılsınız?';
+  if (t.includes('kim') && t.includes('sin')) return 'Ben ARYA AI — Arya Expansion Software tarafından geliştirilen, GPT-4o destekli bir yapay zeka modeliyim. Türkçe, İngilizce ve daha fazla dilde yardım edebilirim.';
+  if (t.includes('yapay zeka') || t.includes('ai')) return 'Yapay zeka, insan zekasını taklit eden ve makinelerin öğrenmesini sağlayan bir teknolojidir. Ben de bu teknolojinin en gelişmiş örneğiyim! GPT-4o ile daha kapsamlı yanıtlar için API anahtarınızı ekleyin.';
+  if (t.includes('müzik')) return 'Müzik Stüdyosu\'na gidin! Gerçek zamanlı polifonik sentez motorum ile melodi, armoni, bas, ritim ve atmosphere katmanlarını bir arada üretebilirim. Suno AI\'dan çok daha fazla kontrol size sunuluyor!';
+  if (t.includes('görsel') || t.includes('resim')) return 'Görsel Analiz sayfasına gidin. DALL-E 3 ile yüksek kaliteli görseller üretebilir, GPT-4o Vision ile resimleri analiz edebilirim. API anahtarı gereklidir.';
+  return `Demo moddasınız. "${text.substring(0, 50)}" hakkında tam yanıt için Ayarlar\'dan OpenAI API anahtarınızı ekleyin. Anahtarınız yalnızca tarayıcınızda saklanır, güvenlidir.`;
 }
 
-function appendThinkBubble(text){
-  const msgs=document.getElementById('chat-messages');
-  const d=document.createElement('div'); d.className='msg arya';
-  const b=document.createElement('div'); b.className='think-bubble'; b.textContent='◈ '+text;
-  d.innerHTML='<div class="msg-avatar">A</div>'; const body=document.createElement('div'); body.className='msg-body'; body.appendChild(b); d.appendChild(body);
-  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return b;
+function renderUserMessage(text, img) {
+  const msgs = document.getElementById('chat-messages');
+  const d = document.createElement('div');
+  d.className = 'msg user';
+  const letter = S.user ? S.user.name.charAt(0).toUpperCase() : 'S';
+  d.innerHTML = `
+    <div class="msg-avatar">${letter}</div>
+    <div class="msg-body">
+      <div class="msg-name">${S.user ? S.user.name : 'Siz'}</div>
+      <div class="msg-content">${img ? `<img src="${img}" style="max-width:200px;border-radius:8px;margin-bottom:6px;display:block">` : ''}${escHtml(text)}</div>
+    </div>`;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
-// ── MARKDOWN RENDERER ─────────────────────
-function renderMarkdown(text){
-  if(!document.getElementById('md-toggle')?.checked) return escHtml(text).replace(/\n/g,'<br>');
-  return text
-    .replace(/```(\w*)\n?([\s\S]*?)```/g,(_,lang,code)=>`<pre><code class="lang-${lang}">${escHtml(code.trim())}</code></pre>`)
-    .replace(/`([^`\n]+)`/g,'<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*([^*\n]+)\*/g,'<em>$1</em>')
-    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
-    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
-    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
-    .replace(/^\| (.+) \|$/gm,(_,row)=>`<tr>${row.split('|').map(c=>`<td>${c.trim()}</td>`).join('')}</tr>`)
-    .replace(/(<tr>.*<\/tr>)+/gs, t=>`<table>${t}</table>`)
-    .replace(/^> (.+)$/gm,'<blockquote>$1</blockquote>')
-    .replace(/^[-*] (.+)$/gm,'<li>$1</li>')
-    .replace(/(<li>.*<\/li>)+/gs,l=>`<ul>${l}</ul>`)
-    .replace(/^\d+\. (.+)$/gm,'<li>$1</li>')
-    .replace(/\n\n/g,'<br><br>')
-    .replace(/\n(?!<)/g,'<br>');
+function renderAryaMessage(text, isError) {
+  const msgs = document.getElementById('chat-messages');
+  const d = document.createElement('div');
+  d.className = 'msg arya';
+  const html = isError ? `<div class="msg-error">${escHtml(text)}</div>` : markdownToHtml(text);
+  d.innerHTML = `
+    <div class="msg-avatar">A</div>
+    <div class="msg-body">
+      <div class="msg-name">ARYA AI</div>
+      <div class="msg-content">${html}</div>
+    </div>`;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
-function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function addTypingIndicator(id) {
+  const msgs = document.getElementById('chat-messages');
+  const d = document.createElement('div');
+  d.className = 'msg arya';
+  d.id = id;
+  d.innerHTML = `<div class="msg-avatar">A</div><div class="msg-body"><div class="msg-name">ARYA AI</div><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+}
 
-// ── IMAGE UPLOAD (CHAT) ───────────────────
-function handleImageUpload(e){
-  const file=e.target.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    S.pendingImage=ev.target.result;
+function removeTypingIndicator(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function setQiThinking(on) {
+  const dot = document.getElementById('qi-dot');
+  const lbl = document.getElementById('qi-label');
+  if (dot) dot.classList.toggle('thinking', on);
+  if (lbl) lbl.textContent = on ? 'Düşünüyor...' : 'Hazır';
+}
+
+/* ---- IMAGE UPLOAD ---- */
+function handleImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    S.visionBase64 = ev.target.result;
+    document.getElementById('preview-thumb').src = ev.target.result;
     document.getElementById('image-preview-chip').classList.remove('hidden');
-    document.getElementById('preview-thumb').src=ev.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-function removeImagePreview(){ S.pendingImage=null; document.getElementById('image-preview-chip').classList.add('hidden'); document.getElementById('img-upload').value=''; }
-
-// ── VOICE INPUT ───────────────────────────
-let _recognition=null;
-function toggleVoice(){
-  const btn=document.getElementById('voice-btn');
-  if(_recognition){ _recognition.stop(); _recognition=null; btn.classList.remove('recording'); return; }
-  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){ showToast('Tarayıcınız ses tanımayı desteklemiyor.','warn'); return; }
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  _recognition=new SR(); _recognition.lang='tr-TR'; _recognition.continuous=false; _recognition.interimResults=true;
-  _recognition.onstart=()=>btn.classList.add('recording');
-  _recognition.onresult=e=>{ const t=e.results[e.results.length-1][0].transcript; document.getElementById('chat-input').value=t; autoResize(document.getElementById('chat-input')); };
-  _recognition.onend=()=>{ btn.classList.remove('recording'); _recognition=null; };
-  _recognition.onerror=()=>{ btn.classList.remove('recording'); _recognition=null; };
-  _recognition.start();
-}
-
-// ── TTS ───────────────────────────────────
-function initTTSVoices(){
-  const load=()=>{ S.ttsVoices=window.speechSynthesis.getVoices(); const sel=document.getElementById('tts-voice-select'); if(sel){ sel.innerHTML=''; S.ttsVoices.forEach((v,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${v.name} (${v.lang})`; sel.appendChild(o); }); } };
-  window.speechSynthesis.onvoiceschanged=load; load();
-}
-function speakText(text){
-  window.speechSynthesis.cancel();
-  const utt=new SpeechSynthesisUtterance(text);
-  const vi=parseInt(document.getElementById('tts-voice-select')?.value||0);
-  if(S.ttsVoices[vi]) utt.voice=S.ttsVoices[vi];
-  utt.rate=parseFloat(document.getElementById('tts-rate')?.value||100)/100;
-  window.speechSynthesis.speak(utt);
-}
-
-// ── VISION PAGE ───────────────────────────
-function handleVisionDrop(e){ e.preventDefault(); const f=e.dataTransfer.files[0]; if(f?.type.startsWith('image/')) loadVisionImage(f); }
-function handleVisionFile(e){ const f=e.target.files[0]; if(f) loadVisionImage(f); }
-function loadVisionImage(file){
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    S.visionImageData=ev.target.result;
-    document.getElementById('vision-preview').innerHTML=`<img src="${ev.target.result}" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:8px">`;
-    document.getElementById('vision-result').innerHTML='<span style="color:var(--q-primary)">Görsel yüklendi. Analiz için bir araç seçin.</span>';
   };
   reader.readAsDataURL(file);
 }
 
-const VISION_PROMPTS={
-  analyze:'Bu görseli profesyonel bir görüntü analisti gibi derinlemesine analiz et. Kompozisyon, renkler, ışık, nesneler, bağlam, teknik kalite ve öne çıkan detayları açıkla.',
-  describe:'Bu görseli en az 200 kelimeyle detaylıca açıkla. Ne görüyorsun? Ortam, nesneler, renkler, atmosfer nedir?',
-  objects:'Bu görseldeki tüm nesneleri, kişileri ve öğeleri listele. Her birinin konumunu ve güven yüzdesini belirt.',
-  text:'Bu görseldeki tüm yazılı metni (OCR) aynen çıkar. Tüm görünür metni kopyala.',
-  emotion:'Bu görselin duygusal analizini yap. Hangi duyguları uyandırıyor? Renk psikolojisi, kompozisyon etkisi, izleyici tepkisi nedir?',
-  code:'Bu görsel bir UI/kod/diyagram ise, içeriğini koda çevir veya detaylı teknik açıklama yap.',
-};
+function removeImagePreview() {
+  S.visionBase64 = null;
+  document.getElementById('image-preview-chip').classList.add('hidden');
+  document.getElementById('img-upload').value = '';
+}
 
-async function visionAction(type){
-  if(!S.visionImageData){ showToast('Önce bir görsel yükleyin.','warn'); return; }
-  const resultEl=document.getElementById('vision-result');
-  resultEl.innerHTML='<span style="color:var(--q-primary)">Analiz ediliyor...</span>';
-  try{
-    let resp;
-    if(S.apiKey){
-      resp=await openaiVision(S.visionImageData,VISION_PROMPTS[type]);
+/* ---- TTS (Türkçe) ---- */
+let currentUtterance = null;
+function toggleTTS() {
+  S.ttsActive = !S.ttsActive;
+  const btn = document.getElementById('tts-btn');
+  const lbl = document.getElementById('tts-mode-label');
+  if (btn) btn.classList.toggle('active', S.ttsActive);
+  if (lbl) lbl.classList.toggle('hidden', !S.ttsActive);
+  toast(S.ttsActive ? 'Sesli yanıt aktif' : 'Sesli yanıt kapalı', 'ok');
+}
+
+function setVoiceGender(g) {
+  S.voiceGender = g;
+  saveState();
+  document.getElementById('vg-male')?.classList.toggle('active', g === 'male');
+  document.getElementById('vg-female')?.classList.toggle('active', g === 'female');
+  document.getElementById('sg-male')?.classList.toggle('active', g === 'male');
+  document.getElementById('sg-female')?.classList.toggle('active', g === 'female');
+  toast(g === 'male' ? 'Erkek ses seçildi' : 'Kadın ses seçildi', 'ok');
+}
+
+function speakText(text) {
+  if (!('speechSynthesis' in window)) return;
+  if (currentUtterance) { window.speechSynthesis.cancel(); }
+
+  const plain = text.replace(/```[\s\S]*?```/g, '').replace(/[#*`_~]/g, '').substring(0, 1000);
+  const utter = new SpeechSynthesisUtterance(plain);
+  utter.lang = 'tr-TR';
+  utter.rate = parseFloat(document.getElementById('tts-rate')?.value || 95) / 100;
+  utter.pitch = parseFloat(document.getElementById('tts-pitch')?.value || 100) / 100;
+
+  const voices = window.speechSynthesis.getVoices();
+  const trVoices = voices.filter(v => v.lang.startsWith('tr'));
+
+  if (trVoices.length > 0) {
+    if (S.voiceGender === 'female') {
+      const female = trVoices.find(v => /female|woman|kadin|zeynep|filiz/i.test(v.name)) || trVoices[0];
+      utter.voice = female;
     } else {
-      await delay(800);
-      resp='Demo mod: Görsel analizi için OpenAI API anahtarı gerekli. Ayarlar sayfasından ekleyebilirsiniz.';
+      const male = trVoices.find(v => /male|man|erkek|onur|ali/i.test(v.name)) || trVoices[trVoices.length > 1 ? 1 : 0];
+      utter.voice = male;
     }
-    resultEl.innerHTML=renderMarkdown(resp);
-  }catch(err){
-    resultEl.innerHTML=`<span style="color:var(--danger)">Hata: ${err.message}</span>`;
+  } else if (voices.length > 0) {
+    utter.voice = S.voiceGender === 'female'
+      ? (voices.find(v => /female|woman/i.test(v.name)) || voices[0])
+      : (voices.find(v => /male|man/i.test(v.name)) || voices[0]);
+  }
+
+  currentUtterance = utter;
+  window.speechSynthesis.speak(utter);
+}
+
+/* ---- VOICE INPUT ---- */
+let recognition = null;
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    toast('Sesli giriş bu tarayıcıda desteklenmiyor.', 'err'); return;
+  }
+  if (S.voiceActive) {
+    recognition?.stop();
+    S.voiceActive = false;
+    document.getElementById('voice-btn')?.classList.remove('recording');
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'tr-TR';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onresult = e => {
+    const text = e.results[0][0].transcript;
+    document.getElementById('chat-input').value = text;
+    autoResize(document.getElementById('chat-input'));
+  };
+  recognition.onend = () => {
+    S.voiceActive = false;
+    document.getElementById('voice-btn')?.classList.remove('recording');
+  };
+  recognition.onerror = () => {
+    S.voiceActive = false;
+    document.getElementById('voice-btn')?.classList.remove('recording');
+  };
+  recognition.start();
+  S.voiceActive = true;
+  document.getElementById('voice-btn')?.classList.add('recording');
+}
+
+/* ---- THINK MODE ---- */
+function toggleThinkMode() {
+  S.thinkMode = !S.thinkMode;
+  document.getElementById('think-toggle')?.classList.toggle('active', S.thinkMode);
+  document.getElementById('think-mode-label')?.classList.toggle('hidden', !S.thinkMode);
+  toast(S.thinkMode ? 'Derin Düşünce aktif' : 'Derin Düşünce kapalı', 'ok');
+}
+
+/* ---- MODEL ---- */
+function updateModelBadge() {
+  const sel = document.getElementById('model-select');
+  const badge = document.getElementById('model-badge');
+  const lbl = document.getElementById('active-model-label');
+  const vi = document.getElementById('vi-model');
+  const v = sel?.value || 'gpt-4o';
+  if (badge) badge.textContent = v.toUpperCase();
+  if (lbl) lbl.textContent = v;
+  if (vi) vi.textContent = v + ' (OpenAI)';
+}
+
+/* ---- VISION ---- */
+let visionFile = null;
+function handleVisionDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) loadVisionFile(file);
+}
+
+function handleVisionFile(e) {
+  const file = e.target.files[0];
+  if (file) loadVisionFile(file);
+}
+
+function loadVisionFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    visionFile = ev.target.result;
+    const prev = document.getElementById('vision-preview');
+    prev.innerHTML = `<img src="${ev.target.result}" alt="Görsel">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function visionAction(action) {
+  if (!visionFile) { toast('Önce bir görsel yükleyin.', 'warn'); return; }
+  if (!S.apiKey) { toast('GPT-4o Vision için API anahtarı gerekli.', 'warn'); return; }
+  if (!useCredit(3)) return;
+
+  const prompts = {
+    analyze: 'Bu görseli ayrıntılı analiz et. Renk, kompozisyon, içerik ve anlam açısından değerlendir.',
+    describe: 'Bu görseli Türkçe olarak ayrıntılı açıkla.',
+    objects: 'Bu görseldeki tüm nesneleri, hayvanları ve insanları listele.',
+    text: 'Bu görseldeki tüm yazıları ve metinleri çıkar (OCR).',
+    emotion: 'Bu görseldeki duygu, atmosfer ve hissi analiz et.',
+    code: 'Bu görsel bir UI/mockup/diyagram ise HTML+CSS koduna çevir.'
+  };
+
+  const result = document.getElementById('vision-result');
+  result.innerHTML = '<span style="color:var(--q-primary)">Analiz ediliyor...</span>';
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + S.apiKey },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: [
+          { type: 'text', text: prompts[action] },
+          { type: 'image_url', image_url: { url: visionFile } }
+        ]}],
+        max_tokens: 1500
+      })
+    });
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || 'Analiz başarısız.';
+    result.innerHTML = markdownToHtml(text);
+    S.stats.images++;
+    saveState();
+  } catch(e) {
+    result.innerHTML = `<span class="msg-error">Hata: ${e.message}</span>`;
   }
 }
 
-// ── IMAGE GENERATION ─────────────────────
-async function generateImage(){
-  const prompt=document.getElementById('image-prompt').value.trim();
-  if(!prompt){ showToast('Görsel tanımı girin.','warn'); return; }
-  if(!S.apiKey){ showToast('DALL-E 3 için API anahtarı gerekli.','warn'); return; }
-  const size=document.getElementById('image-size').value;
-  const quality=document.getElementById('image-quality').value;
-  const gallery=document.getElementById('gen-gallery');
-  const btn=document.getElementById('gen-img-btn');
-  btn.disabled=true; btn.textContent='Üretiliyor...';
-  const card=document.createElement('div'); card.className='gen-image-card';
-  card.innerHTML='<div class="gen-loading"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
-  gallery.insertBefore(card,gallery.firstChild);
-  try{
-    const url=await openaiDalle(prompt,size,quality);
-    card.innerHTML=`<img src="${url}" alt="${escHtml(prompt)}" loading="lazy"><button class="img-download" onclick="downloadImg('${url}','arya-img.png')">İndir</button>`;
-  }catch(err){
-    card.innerHTML=`<div style="padding:16px;font-size:.8rem;color:var(--danger)">Hata: ${err.message}</div>`;
-  } finally{
-    btn.disabled=false; btn.textContent='Üret';
+async function generateImage() {
+  const prompt = document.getElementById('image-prompt')?.value.trim();
+  if (!prompt) { toast('Görsel açıklaması girin.', 'warn'); return; }
+  if (!S.apiKey) { toast('DALL-E 3 için API anahtarı gerekli.', 'warn'); return; }
+  if (!useCredit(5)) return;
+
+  const size = document.getElementById('image-size')?.value || '1024x1024';
+  const quality = document.getElementById('image-quality')?.value || 'standard';
+  const btn = document.getElementById('gen-img-btn');
+  btn.disabled = true;
+  btn.textContent = 'Üretiliyor...';
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + S.apiKey },
+      body: JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size, quality })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const url = data.data[0].url;
+    const gallery = document.getElementById('gen-gallery');
+    const card = document.createElement('div');
+    card.className = 'gen-image-card';
+    card.innerHTML = `<img src="${url}" alt="${escHtml(prompt)}" loading="lazy"><button class="img-download" onclick="downloadImg('${url}','arya-img.png')">İndir</button>`;
+    gallery.prepend(card);
+    S.stats.images++;
+    saveState();
+  } catch(e) {
+    toast('Görsel üretim hatası: ' + e.message, 'err');
   }
+  btn.disabled = false;
+  btn.textContent = 'Üret';
 }
-function downloadImg(url,name){ const a=document.createElement('a'); a.href=url; a.download=name; a.target='_blank'; a.click(); }
 
-// ── VIDEO (Multi-frame DALL-E) ────────────
-async function generateVideo(){
-  const prompt=document.getElementById('video-prompt').value.trim();
-  if(!prompt){ showToast('Senaryo girin.','warn'); return; }
-  if(!S.apiKey){ showToast('Video üretimi için API anahtarı gerekli.','warn'); return; }
-  const frameCount=parseInt(document.getElementById('video-frames').value);
-  const style=document.getElementById('video-style').value;
-  const quality=document.getElementById('video-quality').value;
-  const btn=document.getElementById('gen-video-btn');
-  const progressEl=document.getElementById('video-progress');
-  const fillEl=document.getElementById('vp-fill');
-  const pctEl=document.getElementById('vp-pct');
-  const framesGrid=document.getElementById('video-frames-grid');
-  btn.disabled=true; progressEl.style.display='block'; framesGrid.innerHTML='';
+function downloadImg(url, name) {
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.target = '_blank';
+  document.body.appendChild(a); a.click(); a.remove();
+}
 
-  const framePrompts=[];
-  for(let i=0;i<frameCount;i++) framePrompts.push(`${style} stil video karesi ${i+1}/${frameCount}: ${prompt}. Sinematik kompozisyon, ${i===0?'başlangıç':i===frameCount-1?'bitiş':'orta'} sahnesi.`);
+/* ---- VIDEO ---- */
+async function generateVideo() {
+  const prompt = document.getElementById('video-prompt')?.value.trim();
+  if (!prompt) { toast('Sahne açıklaması girin.', 'warn'); return; }
+  if (!S.apiKey) { toast('API anahtarı gerekli.', 'warn'); return; }
 
-  for(let i=0;i<frameCount;i++){
-    try{
-      fillEl.style.width=((i/frameCount)*100)+'%'; pctEl.textContent=Math.round((i/frameCount)*100)+'%';
-      const url=await openaiDalle(framePrompts[i],'1792x1024',quality);
-      const card=document.createElement('div'); card.className='vf-card';
-      card.innerHTML=`<img src="${url}" alt="Kare ${i+1}" loading="lazy"><div class="vf-label">Kare ${i+1} / ${frameCount}</div>`;
-      framesGrid.appendChild(card);
-    }catch(err){
-      const card=document.createElement('div'); card.className='vf-card';
-      card.innerHTML=`<div style="padding:16px;font-size:.8rem;color:var(--danger)">Kare ${i+1} hatası</div>`;
-      framesGrid.appendChild(card);
+  const frames = parseInt(document.getElementById('video-frames')?.value || '6');
+  const style = document.getElementById('video-style')?.value || 'Sinematik';
+  const quality = document.getElementById('video-quality')?.value || 'standard';
+
+  if (!useCredit(frames * 3)) return;
+
+  const btn = document.getElementById('gen-video-btn');
+  btn.disabled = true;
+  btn.textContent = 'Üretiliyor...';
+
+  const prog = document.getElementById('video-progress');
+  const fill = document.getElementById('vp-fill');
+  const pct = document.getElementById('vp-pct');
+  prog.style.display = 'block';
+
+  const grid = document.getElementById('video-frames-grid');
+  grid.innerHTML = '';
+
+  for (let i = 0; i < frames; i++) {
+    const p = Math.round(((i + 1) / frames) * 100);
+    fill.style.width = p + '%';
+    pct.textContent = p + '%';
+
+    try {
+      const framePrompt = `${style} stil, sahne ${i + 1}/${frames}: ${prompt}`;
+      const res = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + S.apiKey },
+        body: JSON.stringify({ model: 'dall-e-3', prompt: framePrompt, n: 1, size: '1792x1024', quality })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      const url = data.data[0].url;
+      const card = document.createElement('div');
+      card.className = 'vf-card';
+      card.innerHTML = `<img src="${url}" alt="Kare ${i + 1}" loading="lazy"><div class="vf-label">Kare ${i + 1}/${frames}</div>`;
+      grid.appendChild(card);
+      if (i === 0) {
+        document.getElementById('video-preview').innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">`;
+      }
+    } catch(e) {
+      toast(`Kare ${i + 1} hatası: ${e.message}`, 'warn');
     }
   }
-  fillEl.style.width='100%'; pctEl.textContent='100%';
-  document.getElementById('video-preview').innerHTML=`<div style="text-align:center;padding:20px"><div style="font-size:2.5rem">🎬</div><div style="font-family:'Orbitron',sans-serif;color:var(--q-primary);margin:8px 0">${frameCount} kare üretildi</div><div style="font-size:.8rem;color:var(--text-muted)">${style} · ${quality.toUpperCase()}</div></div>`;
-  btn.disabled=false;
+
+  prog.style.display = 'none';
+  btn.disabled = false;
+  btn.textContent = 'Kareler Üret';
+  toast('Video kareleri üretildi!', 'ok');
 }
 
-// ══════════════════════════════════════════
-//  WEB AUDIO ENGINE — Gerçek Müzik Sentezi
-// ══════════════════════════════════════════
-const NOTE_FREQ = {
-  'C':261.63,'D':293.66,'E':329.63,'F':349.23,'G':392.00,'A':440.00,'B':493.88,
-  'C#':277.18,'D#':311.13,'F#':369.99,'G#':415.30,'A#':466.16,
-};
+/* ---- MUSIC ENGINE (Advanced) ---- */
+function getAudioCtx() {
+  if (!S.audioCtx || S.audioCtx.state === 'closed') {
+    S.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    S.analyser = S.audioCtx.createAnalyser();
+    S.analyser.fftSize = 256;
+    S.analyser.connect(S.audioCtx.destination);
+  }
+  return S.audioCtx;
+}
 
 const SCALES = {
-  major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], pentatonic:[0,2,4,7,9],
-  blues:[0,3,5,6,7,10], dorian:[0,2,3,5,7,9,10],
+  C:  [0,2,4,5,7,9,11],
+  G:  [7,9,11,12,14,16,18],
+  F:  [5,7,9,10,12,14,16],
+  D:  [2,4,6,7,9,11,13],
+  Am: [9,11,12,14,16,17,19],
+  Em: [4,6,7,9,11,12,14],
+  Dm: [2,4,5,7,9,10,12],
+  Bm: [11,13,14,16,18,19,21]
 };
 
-const CHORD_PROGS = {
-  'Klasik':[[0,4,7],[5,9,12],[7,11,14],[0,4,7]],
-  'Pop':[[0,4,7],[7,11,14],[9,12,16],[5,9,12]],
-  'Jazz':[[2,5,9],[7,10,14],[0,4,7],[0,4,7]],
-  'Electronic':[[0,7,12],[5,9,15],[3,7,10],[0,7,12]],
-  'Ambient':[[0,4,7,11],[5,9,12,16],[7,11,14,17],[0,4,7,11]],
-  'Dramatik':[[0,3,7],[8,11,15],[5,9,12],[0,3,7]],
-  'Huzurlu':[[0,4,7,11],[5,9,12],[2,5,9],[0,4,7]],
+const CHORD_PROG = {
+  C:  [[0,4,7],[5,9,12],[7,11,14],[0,4,7]],
+  Am: [[9,12,16],[5,9,12],[7,11,14],[9,12,16]],
+  Em: [[4,7,11],[2,5,9],[0,4,7],[4,7,11]],
+  G:  [[7,11,14],[5,9,12],[2,6,9],[7,11,14]],
+  Dm: [[2,5,9],[0,4,7],[7,11,14],[2,5,9]],
 };
 
-class AudioEngine {
-  constructor(){
-    this.ctx=new (window.AudioContext||window.webkitAudioContext)();
-    this.master=this.ctx.createGain(); this.master.gain.value=0.7;
-    this.compressor=this.ctx.createDynamicsCompressor(); this.compressor.threshold.value=-20; this.compressor.ratio.value=4;
-    this.reverb=this.createReverb();
-    this.master.connect(this.compressor); this.compressor.connect(this.ctx.destination);
-    this.nodes=[];
+function midiToHz(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+
+function createNote(ctx, freq, type, vol, start, dur, dest) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type === 'noise' ? 'sawtooth' : (type === 'click' ? 'square' : type);
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(vol, start + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+  osc.connect(gain);
+  gain.connect(dest);
+  osc.start(start);
+  osc.stop(start + dur + 0.05);
+  return osc;
+}
+
+function createReverb(ctx, amount) {
+  const convolver = ctx.createConvolver();
+  const bufLen = ctx.sampleRate * (amount / 20);
+  const buf = ctx.createBuffer(2, bufLen, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const data = buf.getChannelData(c);
+    for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 2);
+  }
+  convolver.buffer = buf;
+  return convolver;
+}
+
+function getTrackConfig(trackEl) {
+  const toggle = trackEl.querySelector('.ti-toggle');
+  const wave = trackEl.querySelector('.track-wave');
+  const vol = trackEl.querySelector('.track-vol');
+  return {
+    active: toggle?.classList.contains('active'),
+    wave: wave?.value || 'sine',
+    vol: (parseInt(vol?.value || 80)) / 100
+  };
+}
+
+async function composeAndPlay() {
+  if (S.musicPlaying) stopMusic();
+  const ctx = getAudioCtx();
+  if (ctx.state === 'suspended') await ctx.resume();
+
+  const bpm = parseInt(document.getElementById('music-bpm')?.value || 120);
+  const key = document.getElementById('music-key')?.value || 'C';
+  const octave = parseInt(document.getElementById('music-octave')?.value || 4);
+  const density = document.getElementById('music-density')?.value || 'medium';
+  const bars = parseInt(document.getElementById('music-length')?.value || 16);
+  const reverbAmt = parseInt(document.getElementById('fx-reverb')?.value || 30);
+  const delayAmt = parseInt(document.getElementById('fx-delay')?.value || 10);
+  const chorusAmt = parseInt(document.getElementById('fx-chorus')?.value || 20);
+
+  const beat = 60 / bpm;
+  const scale = SCALES[key] || SCALES['C'];
+  const chords = CHORD_PROG[key] || CHORD_PROG['C'];
+
+  const masterGain = ctx.createGain();
+  masterGain.gain.value = parseInt(document.getElementById('vol-slider')?.value || 70) / 100;
+
+  let dest = masterGain;
+
+  // Reverb
+  if (reverbAmt > 0) {
+    const rev = createReverb(ctx, reverbAmt);
+    const revGain = ctx.createGain();
+    revGain.gain.value = reverbAmt / 150;
+    const dryGain = ctx.createGain();
+    dryGain.gain.value = 1 - reverbAmt / 200;
+    rev.connect(revGain);
+    revGain.connect(S.analyser);
+    masterGain.connect(dryGain);
+    dryGain.connect(S.analyser);
+    dest = masterGain;
+  } else {
+    masterGain.connect(S.analyser);
   }
 
-  createReverb(){
-    const len=this.ctx.sampleRate*2, buf=this.ctx.createBuffer(2,len,this.ctx.sampleRate);
-    for(let c=0;c<2;c++){ const d=buf.getChannelData(c); for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2); }
-    const conv=this.ctx.createConvolver(); conv.buffer=buf;
-    const wet=this.ctx.createGain(); wet.gain.value=0.2; conv.connect(wet); wet.connect(this.ctx.destination);
-    return conv;
-  }
+  const now = ctx.currentTime + 0.1;
+  const notes = [];
 
-  getFreq(rootNote, semitones, octave){
-    const base=NOTE_FREQ[rootNote]||261.63;
-    return base * Math.pow(2, (semitones + (octave-4)*12) / 12);
-  }
+  // Track configs
+  const trackEls = document.querySelectorAll('.track-item');
+  const tracks = {};
+  trackEls.forEach(el => { tracks[el.dataset.track] = getTrackConfig(el); });
 
-  createOscillator(freq, type, startTime, duration, gain=0.3){
-    const osc=this.ctx.createOscillator(); osc.type=type; osc.frequency.value=freq;
-    const env=this.ctx.createGain();
-    const att=0.02, dec=0.1, sus=0.6, rel=0.3;
-    env.gain.setValueAtTime(0, startTime);
-    env.gain.linearRampToValueAtTime(gain, startTime+att);
-    env.gain.linearRampToValueAtTime(gain*sus, startTime+att+dec);
-    env.gain.setValueAtTime(gain*sus, startTime+duration-rel);
-    env.gain.linearRampToValueAtTime(0, startTime+duration);
-    osc.connect(env); env.connect(this.master); env.connect(this.reverb);
-    osc.start(startTime); osc.stop(startTime+duration+0.1);
-    this.nodes.push(osc);
-    return osc;
-  }
+  const notesPerBar = density === 'dense' ? 8 : density === 'sparse' ? 2 : 4;
+  const baseNote = (octave + 1) * 12;
 
-  playChord(notes, startTime, duration, type='sine', gain=0.2){
-    notes.forEach(freq=> this.createOscillator(freq, type, startTime, duration, gain/notes.length));
-  }
+  for (let bar = 0; bar < bars; bar++) {
+    const chord = chords[bar % chords.length];
+    const barStart = now + bar * beat * 4;
 
-  async compose(params){
-    const {genre,bpm,key,octave,instType}=params;
-    const beatDur=60/bpm;
-    const scale=SCALES[genre==='Jazz'?'dorian':genre==='Blues'?'blues':genre==='Electronic'||genre==='Ambient'?'pentatonic':'major'];
-    const prog=CHORD_PROGS[genre]||CHORD_PROGS['Pop'];
-    const totalBars=8; const beatsPerBar=4;
-    const now=this.ctx.currentTime+0.1;
-    let t=now;
-
-    // Melody
-    const melodyNotes=[];
-    for(let bar=0;bar<totalBars;bar++){
-      const chord=prog[bar%prog.length];
-      for(let beat=0;beat<beatsPerBar;beat++){
-        const semi=scale[Math.floor(Math.random()*scale.length)]+(bar%2===0?0:12);
-        const freq=this.getFreq(key.replace('m','').replace('Am','A').replace('Em','E').replace('Dm','D'), semi, parseInt(octave));
-        melodyNotes.push({freq,t,dur:beatDur*(Math.random()>.6?.5:1)});
-        t+=beatDur;
+    // MELODY
+    if (tracks.melody?.active) {
+      for (let n = 0; n < notesPerBar; n++) {
+        const noteIdx = Math.floor(Math.random() * scale.length);
+        const midi = baseNote + scale[noteIdx];
+        const t = barStart + n * (beat * 4 / notesPerBar);
+        const dur = beat * (Math.random() > 0.6 ? 0.8 : 0.4);
+        notes.push(createNote(ctx, midiToHz(midi), tracks.melody.wave, tracks.melody.vol * 0.5, t, dur, masterGain));
       }
     }
 
-    // Play melody
-    melodyNotes.forEach(n=> this.createOscillator(n.freq, instType||'sine', n.t, n.dur, 0.25));
-
-    // Play chords (background)
-    const chordRoot=key.replace('m','').replace('Am','A').replace('Em','E').replace('Dm','D');
-    let ct=now;
-    for(let bar=0;bar<totalBars;bar++){
-      const chord=prog[bar%prog.length];
-      const freqs=chord.map(s=>this.getFreq(chordRoot, s, parseInt(octave)-1));
-      this.playChord(freqs, ct, beatDur*4, 'triangle', 0.15);
-      ct+=beatDur*4;
+    // HARMONY (chords)
+    if (tracks.harmony?.active) {
+      chord.forEach(interval => {
+        const midi = baseNote - 12 + interval;
+        notes.push(createNote(ctx, midiToHz(midi), tracks.harmony.wave, tracks.harmony.vol * 0.25, barStart, beat * 3.8, masterGain));
+      });
     }
 
-    // Bass line
-    let bt=now;
-    for(let bar=0;bar<totalBars;bar++){
-      const root=prog[bar%prog.length][0];
-      const freq=this.getFreq(chordRoot, root, parseInt(octave)-2);
-      for(let beat=0;beat<4;beat+=2){
-        this.createOscillator(freq, 'sine', bt+beat*beatDur, beatDur*1.8, 0.3);
+    // BASS
+    if (tracks.bass?.active) {
+      const bassMidi = baseNote - 24 + chord[0];
+      notes.push(createNote(ctx, midiToHz(bassMidi), tracks.bass.wave, tracks.bass.vol * 0.6, barStart, beat * 1.9, masterGain));
+      notes.push(createNote(ctx, midiToHz(bassMidi), tracks.bass.wave, tracks.bass.vol * 0.4, barStart + beat * 2, beat * 1.9, masterGain));
+    }
+
+    // DRUMS (hi-hat + kick pattern)
+    if (tracks.drums?.active) {
+      for (let b = 0; b < 8; b++) {
+        const t = barStart + b * beat * 0.5;
+        const isKick = b === 0 || b === 4;
+        const freq = isKick ? 60 + Math.random() * 20 : 200 + Math.random() * 100;
+        const vol = isKick ? tracks.drums.vol * 0.8 : tracks.drums.vol * 0.3;
+        notes.push(createNote(ctx, freq, 'sine', vol, t, isKick ? 0.3 : 0.08, masterGain));
       }
-      bt+=beatDur*4;
     }
 
-    return totalBars * beatsPerBar * beatDur;
+    // PAD (atmosphere)
+    if (tracks.pad?.active) {
+      chord.forEach((interval, ci) => {
+        const midi = baseNote + interval;
+        const t = barStart + ci * beat;
+        notes.push(createNote(ctx, midiToHz(midi), tracks.pad.wave, tracks.pad.vol * 0.15, t, beat * 3.5, masterGain));
+      });
+    }
   }
 
-  stopAll(){ this.nodes.forEach(n=>{ try{n.stop(this.ctx.currentTime+0.05);}catch{} }); this.nodes=[]; }
-  setVolume(v){ this.master.gain.setTargetAtTime(v/100, this.ctx.currentTime, 0.01); }
-  resume(){ if(this.ctx.state==='suspended') this.ctx.resume(); }
+  S.musicNodes = notes;
+  S.musicPlaying = true;
+  S.stats.music++;
+  saveState();
+
+  document.getElementById('play-btn').textContent = '⏸';
+  const genre = document.getElementById('music-genre')?.value || 'Müzik';
+  document.getElementById('mp-title').textContent = genre + ' Bestesi';
+  document.getElementById('mp-sub').textContent = `${bpm} BPM · ${key} · ${bars} bar`;
+
+  const totalDur = bars * beat * 4;
+  document.getElementById('mp-total').textContent = fmtTime(totalDur);
+
+  startVizualizer();
+  updatePianoRoll(scale, baseNote);
+  renderMusicLibraryEntry(genre, bpm, key, totalDur);
+
+  const startT = Date.now();
+  const progInterval = setInterval(() => {
+    if (!S.musicPlaying) { clearInterval(progInterval); return; }
+    const elapsed = (Date.now() - startT) / 1000;
+    const pct = Math.min(elapsed / totalDur, 1);
+    document.getElementById('mp-fill').style.width = (pct * 100) + '%';
+    document.getElementById('mp-current').textContent = fmtTime(elapsed);
+    if (pct >= 1) {
+      clearInterval(progInterval);
+      if (S.loopMode) { composeAndPlay(); return; }
+      stopMusic();
+    }
+  }, 250);
+
+  toast('Müzik başlatıldı!', 'ok');
 }
 
-// ── MUSIC UI ─────────────────────────────
-function toggleInst(btn){ document.querySelectorAll('.inst-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
-
-let _playInterval=null, _playElapsed=0, _playTotal=0;
-
-async function composeAndPlay(){
-  if(!S.musicEngine) S.musicEngine=new AudioEngine();
-  S.musicEngine.resume();
-  S.musicEngine.stopAll();
-  clearInterval(_playInterval); S.isPlaying=false;
-
-  const genre=document.getElementById('music-genre').value;
-  const bpm=parseInt(document.getElementById('music-bpm').value);
-  const key=document.getElementById('music-key').value;
-  const octave=document.getElementById('music-octave').value;
-  const instBtn=document.querySelector('.inst-btn.active');
-  const instType=instBtn?.dataset.inst||'sine';
-
-  const btn=document.getElementById('compose-btn');
-  btn.disabled=true; btn.textContent='Bestelenyor...';
-
-  try{
-    const duration=await S.musicEngine.compose({genre,bpm,key,octave,instType});
-    _playTotal=Math.ceil(duration); _playElapsed=0;
-    S.isPlaying=true;
-    document.getElementById('play-btn').textContent='⏸';
-    document.getElementById('mp-title').textContent=`${genre} — ${key}`;
-    document.getElementById('mp-sub').textContent=`${bpm} BPM · ${instBtn?.textContent||'Piyano'}`;
-    document.getElementById('mp-total').textContent=fmtDur(_playTotal);
-    S.musicTracks.push({title:`${genre} — ${key}`,meta:`${bpm} BPM`,duration:_playTotal,instType});
-    S.currentTrack=S.musicTracks.length-1;
-    addMusicTrack(S.currentTrack);
-    startViz();
-    _playInterval=setInterval(()=>{
-      if(!S.isPlaying) return;
-      _playElapsed++;
-      const pct=Math.min((_playElapsed/_playTotal)*100,100);
-      document.getElementById('mp-fill').style.width=pct+'%';
-      document.getElementById('mp-current').textContent=fmtDur(_playElapsed);
-      if(_playElapsed>=_playTotal){ clearInterval(_playInterval); S.isPlaying=false; document.getElementById('play-btn').textContent='▶'; stopViz(); }
-    },1000);
-  }catch(err){ showToast('Müzik hatası: '+err.message,'warn'); }
-  finally{ btn.disabled=false; btn.textContent='Bestele & Çal'; }
-}
-
-function togglePlay(){ S.isPlaying=!S.isPlaying; document.getElementById('play-btn').textContent=S.isPlaying?'⏸':'▶'; if(S.isPlaying){S.musicEngine?.resume();startViz();}else stopViz(); }
-function stopMusic(){ if(S.musicEngine){ S.musicEngine.stopAll(); S.isPlaying=false; document.getElementById('play-btn').textContent='▶'; clearInterval(_playInterval); stopViz(); } }
-function rewindMusic(){ _playElapsed=0; document.getElementById('mp-fill').style.width='0%'; document.getElementById('mp-current').textContent='0:00'; }
-function setVolume(v){ S.musicEngine?.setVolume(parseInt(v)); }
-
-function exportMusicWav(){
-  if(!S.musicEngine){ showToast('Önce müzik oluşturun.','warn'); return; }
-  showToast('Web Audio kayıt için OfflineAudioContext gerekli — bu özellik yakında!','warn');
-}
-
-function addMusicTrack(idx){
-  const t=S.musicTracks[idx]; if(!t) return;
-  const lib=document.getElementById('music-library');
-  const d=document.createElement('div'); d.className='music-track'; d.dataset.idx=idx;
-  d.innerHTML=`<span class="mt-play">▶</span><div class="mt-info"><div class="mt-name">${t.title}</div><div class="mt-meta">${t.meta}</div></div><span class="mt-dur">${fmtDur(t.duration)}</span>`;
-  d.onclick=()=>{ S.currentTrack=idx; composeAndPlay(); };
-  lib.appendChild(d);
-}
-
-function initVizBars(){
-  const c=document.getElementById('viz-bars'); c.innerHTML='';
-  for(let i=0;i<40;i++){ const b=document.createElement('div'); b.className='viz-bar'; b.style.height='3px'; c.appendChild(b); }
-}
-
-function startViz(){
-  clearInterval(S.vizInterval);
-  S.vizInterval=setInterval(()=>{
-    document.querySelectorAll('.viz-bar').forEach(b=>{ b.style.height=(Math.random()*60+4)+'px'; });
-  },120);
-}
-
-function stopViz(){
-  clearInterval(S.vizInterval);
-  document.querySelectorAll('.viz-bar').forEach(b=>b.style.height='3px');
-}
-
-function fmtDur(s){ return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
-
-// ── MEMORY ───────────────────────────────
-function saveMemory(item){ item.id=Date.now(); item.time=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}); S.memory.unshift(item); if(S.memory.length>CFG.maxMemory) S.memory=S.memory.slice(0,CFG.maxMemory); localStorage.setItem('arya_memory',JSON.stringify(S.memory)); document.getElementById('mem-count').textContent=S.memory.length+' kayıt'; }
-
-function updateMemoryUI(){
-  const chat=S.memory.filter(m=>m.type==='chat').length;
-  const learn=S.memory.filter(m=>m.type==='learn').length;
-  const pref=S.memory.filter(m=>m.type==='pref').length;
-  document.getElementById('total-mem').textContent=S.memory.length;
-  document.getElementById('chat-mem').textContent=chat;
-  document.getElementById('learn-mem').textContent=learn;
-  document.getElementById('pref-mem').textContent=pref;
-  document.getElementById('mem-count').textContent=S.memory.length+' kayıt';
-  const ctxTok=S.context.reduce((a,c)=>a+(c.content?.length||0),0);
-  document.getElementById('ctx-mem').textContent=Math.round(ctxTok/4);
-  updateCtxTokens();
-  const list=document.getElementById('memory-list');
-  if(!S.memory.length){ list.innerHTML='<div class="empty-state">Sohbet ettikçe ARYA öğrenir.</div>'; return; }
-  list.innerHTML=S.memory.slice(0,60).map(m=>`<div class="memory-item"><span class="mi-type ${m.type}">${m.type==='chat'?'SOHBET':m.type==='learn'?'ÖĞRENME':'TERCİH'}</span><span class="mi-text">${escHtml(m.text)}</span><span class="mi-time">${m.time}</span><button class="mi-del" onclick="deleteMemory(${m.id})">×</button></div>`).join('');
-}
-
-function searchMemory(){ const q=document.getElementById('memory-search').value.toLowerCase(); const r=q?S.memory.filter(m=>m.text.toLowerCase().includes(q)):S.memory; const list=document.getElementById('memory-list'); list.innerHTML=r.length?r.slice(0,60).map(m=>`<div class="memory-item"><span class="mi-type ${m.type}">${m.type==='chat'?'SOHBET':m.type==='learn'?'ÖĞRENME':'TERCİH'}</span><span class="mi-text">${escHtml(m.text)}</span><span class="mi-time">${m.time}</span><button class="mi-del" onclick="deleteMemory(${m.id})">×</button></div>`).join(''):'<div class="empty-state">Sonuç bulunamadı.</div>'; }
-function deleteMemory(id){ S.memory=S.memory.filter(m=>m.id!==id); localStorage.setItem('arya_memory',JSON.stringify(S.memory)); updateMemoryUI(); }
-function clearMemory(){ if(confirm('Tüm hafıza silinecek?')){ S.memory=[]; localStorage.removeItem('arya_memory'); updateMemoryUI(); } }
-function addMemory(){ const t=prompt('Hafızaya not ekle:'); if(t?.trim()) { saveMemory({type:'pref',text:t.trim()}); updateMemoryUI(); } }
-function exportMemory(){ const blob=new Blob([JSON.stringify(S.memory,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='arya-memory.json'; a.click(); }
-
-function updateCtxTokens(){ const t=Math.round((S.context.reduce((a,c)=>a+(c.content?.length||0),0)+S.chatHistory.reduce((a,m)=>a+(m.content?.length||0),0))/4); document.getElementById('ctx-tokens').textContent=t+' tok'; }
-
-// ── TRAINING / CONTEXT ────────────────────
-async function handleTrainFile(event, type){
-  const files=[...event.target.files]; if(!files.length) return;
-  const statusEl=document.getElementById(`ts-${type}`); statusEl.textContent='Okunuyor...'; statusEl.style.color='var(--warning)';
-  for(const file of files){
-    try{
-      const text=await file.text();
-      S.context.push({name:file.name, type, content:text.slice(0,8000), size:file.size});
-      localStorage.setItem('arya_context',JSON.stringify(S.context));
-      statusEl.textContent=`✓ ${files.length} dosya yüklendi`;
-      statusEl.style.color='var(--success)';
-      saveMemory({type:'learn',text:`${type} eğitim: ${file.name}`});
-    }catch(e){ statusEl.textContent='Hata: '+e.message; }
+function stopMusic() {
+  S.musicNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+  S.musicNodes = [];
+  S.musicPlaying = false;
+  document.getElementById('play-btn').textContent = '▶';
+  if (S.vizFrame) { cancelAnimationFrame(S.vizFrame); S.vizFrame = null; }
+  const canvas = document.getElementById('music-canvas');
+  if (canvas) {
+    const ctx2d = canvas.getContext('2d');
+    ctx2d.clearRect(0, 0, canvas.width, canvas.height);
   }
-  updateContextUI(); updateMemoryUI();
 }
 
-async function handleTrainImageFile(event){
-  const files=[...event.target.files]; if(!files.length) return;
-  if(!S.apiKey){ showToast('Görsel analizi için API anahtarı gerekli.','warn'); return; }
-  const statusEl=document.getElementById('ts-image'); statusEl.textContent='Analiz ediliyor...'; statusEl.style.color='var(--warning)';
-  for(const file of files){
-    const reader=new FileReader();
-    reader.onload=async ev=>{
-      try{
-        const desc=await openaiVision(ev.target.result,'Bu görseli detaylıca açıkla. İçeriğini, nesneleri ve bağlamını anlat.');
-        S.context.push({name:file.name,type:'image',content:`[GÖRSEL TANIM: ${file.name}]\n${desc}`,size:file.size});
-        localStorage.setItem('arya_context',JSON.stringify(S.context));
-        statusEl.textContent='✓ Analiz tamamlandı'; statusEl.style.color='var(--success)';
-        updateContextUI();
-      }catch(e){ statusEl.textContent='Hata: '+e.message; }
+function togglePlay() {
+  if (S.musicPlaying) stopMusic();
+  else composeAndPlay();
+}
+
+function loopToggle() {
+  S.loopMode = !S.loopMode;
+  document.getElementById('loop-btn').style.color = S.loopMode ? 'var(--q-primary)' : '';
+  toast(S.loopMode ? 'Loop aktif' : 'Loop kapalı', 'ok');
+}
+
+function rewindMusic() { stopMusic(); }
+function skipForward() { composeAndPlay(); }
+
+function setVolume(v) {
+  document.getElementById('vol-val').textContent = v + '%';
+}
+
+function seekMusic(e) {}
+
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  return m + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+}
+
+function setVizType(type, btn) {
+  S.vizType = type;
+  document.querySelectorAll('.vt-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function startVizualizer() {
+  if (!S.analyser) return;
+  const canvas = document.getElementById('music-canvas');
+  if (!canvas) return;
+  const ctx2d = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const bufLen = S.analyser.frequencyBinCount;
+  const dataArr = new Uint8Array(bufLen);
+
+  function draw() {
+    S.vizFrame = requestAnimationFrame(draw);
+    S.analyser.getByteFrequencyData(dataArr);
+    ctx2d.clearRect(0, 0, W, H);
+    ctx2d.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx2d.fillRect(0, 0, W, H);
+
+    if (S.vizType === 'bars') {
+      const barW = (W / bufLen) * 2.5;
+      let x = 0;
+      for (let i = 0; i < bufLen; i++) {
+        const h = (dataArr[i] / 255) * H;
+        const r = Math.floor(0 + (dataArr[i] / 255) * 100);
+        const g = Math.floor(180 + (dataArr[i] / 255) * 75);
+        const b = 255;
+        ctx2d.fillStyle = `rgb(${r},${g},${b})`;
+        ctx2d.fillRect(x, H - h, barW - 1, h);
+        x += barW + 1;
+      }
+    } else if (S.vizType === 'wave') {
+      S.analyser.getByteTimeDomainData(dataArr);
+      ctx2d.strokeStyle = 'rgba(0,212,255,0.8)';
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      const sliceW = W / bufLen;
+      let x = 0;
+      for (let i = 0; i < bufLen; i++) {
+        const v = dataArr[i] / 128;
+        const y = (v * H) / 2;
+        i === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y);
+        x += sliceW;
+      }
+      ctx2d.stroke();
+    } else {
+      const cx = W / 2, cy = H / 2, radius = Math.min(cx, cy) - 5;
+      ctx2d.strokeStyle = 'rgba(124,58,237,0.7)';
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      for (let i = 0; i < bufLen; i++) {
+        const angle = (i / bufLen) * Math.PI * 2;
+        const amp = (dataArr[i] / 255) * (radius * 0.5);
+        const r = radius * 0.5 + amp;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        i === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y);
+      }
+      ctx2d.closePath();
+      ctx2d.stroke();
+    }
+  }
+  draw();
+}
+
+function updatePianoRoll(scale, baseNote) {
+  const roll = document.getElementById('piano-roll');
+  if (!roll) return;
+  roll.innerHTML = scale.map((n, i) => {
+    const h = 10 + Math.random() * 30;
+    return `<div class="pr-note" style="height:${h}px;opacity:${0.4 + Math.random()*0.6}"></div>`;
+  }).join('');
+}
+
+function renderMusicLibraryEntry(genre, bpm, key, dur) {
+  S.musicLibrary.unshift({ name: genre + ' Bestesi', meta: `${bpm} BPM · ${key}`, dur: fmtTime(dur), t: Date.now() });
+  if (S.musicLibrary.length > 10) S.musicLibrary = S.musicLibrary.slice(0, 10);
+  saveState();
+  const lib = document.getElementById('music-library');
+  if (!lib) return;
+  lib.innerHTML = S.musicLibrary.map((t, i) =>
+    `<div class="music-track" onclick="toast('${escHtml(t.name)} oynatılıyor...','ok')">
+      <span class="mt-play">▶</span>
+      <div class="mt-info"><div class="mt-name">${escHtml(t.name)}</div><div class="mt-meta">${escHtml(t.meta)}</div></div>
+      <span class="mt-dur">${t.dur}</span>
+    </div>`
+  ).join('');
+}
+
+async function enhanceMusicPrompt() {
+  const inp = document.getElementById('music-prompt');
+  const cur = inp?.value.trim();
+  if (!S.apiKey) { toast('AI geliştirme için API anahtarı gerekli.', 'warn'); return; }
+
+  const btn = document.getElementById('enhance-btn');
+  btn.textContent = '✨ Geliştiriliyor...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + S.apiKey },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'Müzik üretim AI asistanısın. Kullanıcının müzik fikrini zengin, duygusal ve detaylı bir müzik prompt\'una dönüştür. Kısa tut (2-3 cümle).' },
+          { role: 'user', content: cur || 'Güzel bir melodi' }
+        ],
+        max_tokens: 150
+      })
+    });
+    const data = await res.json();
+    if (inp) inp.value = data.choices?.[0]?.message?.content || cur;
+  } catch(e) {
+    toast('Hata: ' + e.message, 'err');
+  }
+  btn.textContent = '✨ AI ile Geliştir';
+  btn.disabled = false;
+}
+
+function toggleTrack(el) {
+  el.classList.toggle('active');
+  el.textContent = el.classList.contains('active') ? 'ON' : 'OFF';
+}
+
+function updatePreview() {}
+
+/* ---- MEMORY ---- */
+function saveToMemory(userText, aiyaText) {
+  const entry = { type: 'chat', text: userText.substring(0, 200), reply: aiyaText.substring(0, 300), time: new Date().toLocaleTimeString('tr-TR'), id: Date.now() };
+  S.memory.unshift(entry);
+  if (S.memory.length > 500) S.memory = S.memory.slice(0, 500);
+  saveState();
+  refreshSidebarStats();
+  updateMemoryStats();
+}
+
+function addToSearchHistory(text) {
+  if (text.length < 3) return;
+  S.searchHistory.push({ text, time: new Date().toLocaleTimeString('tr-TR') });
+  if (S.searchHistory.length > 50) S.searchHistory = S.searchHistory.slice(-50);
+  saveState();
+}
+
+function renderMemoryList() {
+  updateMemoryStats();
+  const list = document.getElementById('memory-list');
+  if (!list) return;
+  const q = document.getElementById('memory-search')?.value.toLowerCase() || '';
+  const filtered = q ? S.memory.filter(m => m.text.toLowerCase().includes(q)) : S.memory;
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state">Sohbet ettikçe ARYA öğrenir.</div>';
+    return;
+  }
+  list.innerHTML = filtered.slice(0, 50).map(m =>
+    `<div class="memory-item">
+      <span class="mi-type ${m.type}">${m.type}</span>
+      <span class="mi-text">${escHtml(m.text)}</span>
+      <span class="mi-time">${m.time}</span>
+      <button class="mi-del" onclick="deleteMemory(${m.id})">✕</button>
+    </div>`
+  ).join('');
+}
+
+function updateMemoryStats() {
+  document.getElementById('total-mem').textContent = S.memory.length;
+  document.getElementById('chat-mem').textContent = S.memory.filter(m => m.type === 'chat').length;
+  document.getElementById('learn-mem').textContent = S.memory.filter(m => m.type === 'learn').length;
+  document.getElementById('pref-mem').textContent = S.memory.filter(m => m.type === 'pref').length;
+  document.getElementById('ctx-mem').textContent = S.trainedContext.length;
+}
+
+function searchMemory() { renderMemoryList(); }
+
+function addMemory() {
+  const text = prompt('Hafızaya eklenecek bilgi:');
+  if (!text) return;
+  S.memory.unshift({ type: 'learn', text, time: new Date().toLocaleTimeString('tr-TR'), id: Date.now() });
+  saveState();
+  renderMemoryList();
+}
+
+function deleteMemory(id) {
+  S.memory = S.memory.filter(m => m.id !== id);
+  saveState();
+  renderMemoryList();
+}
+
+function clearMemory() {
+  if (!confirm('Tüm hafıza silinsin mi?')) return;
+  S.memory = [];
+  saveState();
+  renderMemoryList();
+}
+
+function exportMemory() {
+  const data = JSON.stringify(S.memory, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'arya-memory.json';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+/* ---- TRAINING ---- */
+function handleTrainFile(e, type) {
+  const files = Array.from(e.target.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      S.trainedContext.push({ name: file.name, content: ev.target.result.substring(0, 8000), type, size: file.size, id: Date.now() });
+      saveState();
+      renderContextList();
+      document.getElementById('ts-' + type).textContent = '✓ ' + files.length + ' dosya yüklendi';
+    };
+    reader.readAsText(file);
+  });
+}
+
+function handleTrainImageFile(e) {
+  const files = Array.from(e.target.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      S.trainedContext.push({ name: file.name, content: '[Görsel]: ' + ev.target.result.substring(0, 100) + '...', type: 'image', size: file.size, id: Date.now() });
+      saveState();
+      renderContextList();
     };
     reader.readAsDataURL(file);
+  });
+  document.getElementById('ts-image').textContent = '✓ ' + files.length + ' görsel yüklendi';
+}
+
+function saveManualContext() {
+  const text = document.getElementById('manual-context')?.value.trim();
+  if (!text) return;
+  S.trainedContext.push({ name: 'Manuel Bağlam', content: text, type: 'manual', size: text.length, id: Date.now() });
+  document.getElementById('manual-context').value = '';
+  saveState();
+  renderContextList();
+  toast('Bağlam kaydedildi!', 'ok');
+}
+
+function renderContextList() {
+  const list = document.getElementById('context-list');
+  if (!list) return;
+  const totalChars = S.trainedContext.reduce((sum, c) => sum + (c.content?.length || 0), 0);
+  const sizeEl = document.getElementById('ctx-size-label');
+  if (sizeEl) sizeEl.textContent = `(${totalChars.toLocaleString()} karakter)`;
+
+  if (S.trainedContext.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:16px">Henüz bağlam yüklenmedi.</div>';
+    return;
   }
+  list.innerHTML = S.trainedContext.map(c =>
+    `<div class="trained-item">
+      <span class="ti-icon">${c.type === 'image' ? '🖼️' : c.type === 'code' ? '💻' : c.type === 'manual' ? '✍️' : '📄'}</span>
+      <span class="ti-name">${escHtml(c.name)}</span>
+      <span class="ti-size">${(c.size || 0).toLocaleString()} B</span>
+      <button class="ti-del" onclick="deleteContext(${c.id})">✕</button>
+    </div>`
+  ).join('');
+  updateMemoryStats();
 }
 
-function saveManualContext(){
-  const t=document.getElementById('manual-context').value.trim(); if(!t) return;
-  S.context.push({name:'Manuel Bağlam '+new Date().toLocaleDateString('tr-TR'),type:'manual',content:t,size:t.length});
-  localStorage.setItem('arya_context',JSON.stringify(S.context));
-  document.getElementById('manual-context').value='';
-  updateContextUI(); showToast('Bağlam kaydedildi!');
+function deleteContext(id) {
+  S.trainedContext = S.trainedContext.filter(c => c.id !== id);
+  saveState();
+  renderContextList();
 }
 
-function updateContextUI(){
-  const list=document.getElementById('context-list');
-  const totalChars=S.context.reduce((a,c)=>a+(c.content?.length||0),0);
-  document.getElementById('ctx-size-label').textContent=`· ${S.context.length} öğe · ~${Math.round(totalChars/4)} token`;
-  if(!S.context.length){ list.innerHTML='<div class="empty-state" style="padding:20px">Henüz bağlam yüklenmedi.</div>'; return; }
-  list.innerHTML=S.context.map((c,i)=>`<div class="trained-item"><span class="ti-icon">${c.type==='image'?'🖼️':c.type==='code'?'💻':c.type==='manual'?'✍️':'📄'}</span><span class="ti-name" title="${escHtml(c.name)}">${escHtml(c.name)}</span><span class="ti-size">${Math.round((c.content?.length||0)/4)} tok</span><button class="ti-del" onclick="deleteContext(${i})">×</button></div>`).join('');
+function clearAllContext() {
+  if (!confirm('Tüm bağlam silinsin mi?')) return;
+  S.trainedContext = [];
+  saveState();
+  renderContextList();
 }
 
-function deleteContext(idx){ S.context.splice(idx,1); localStorage.setItem('arya_context',JSON.stringify(S.context)); updateContextUI(); }
-function clearAllContext(){ if(confirm('Tüm bağlam silinecek?')){ S.context=[]; localStorage.removeItem('arya_context'); updateContextUI(); } }
+/* ---- DEEP THINK ---- */
+async function startDeepThink() {
+  const query = document.getElementById('think-query')?.value.trim();
+  if (!query) { toast('Analiz edilecek soru girin.', 'warn'); return; }
+  if (!useCredit(5)) return;
 
-// ── DEEP THINK ────────────────────────────
-async function startDeepThink(){
-  const query=document.getElementById('think-query').value.trim();
-  if(!query){ showToast('Soru girin.','warn'); return; }
-  const output=document.getElementById('think-output'); output.innerHTML='';
-  const btn=document.getElementById('think-btn'); btn.disabled=true; btn.textContent='Düşünüyor...';
-  const showSteps=document.getElementById('think-show-steps').checked;
-  const selfCrit=document.getElementById('think-self-critique').checked;
-  const multiAngle=document.getElementById('think-multi-angle').checked;
-  const prosCons=document.getElementById('think-pros-cons').checked;
+  const output = document.getElementById('think-output');
+  output.innerHTML = '<div style="color:var(--q-primary);text-align:center;padding:20px">◈ Derin analiz başlatılıyor...</div>';
+  const btn = document.getElementById('think-btn');
+  btn.disabled = true;
 
-  const addStep=(type,label,text)=>{
-    const d=document.createElement('div'); d.className=`think-step ${type}`;
-    d.innerHTML=`<div class="ts-label">${label}</div><div class="ts-text">${renderMarkdown(text)}</div>`;
-    output.appendChild(d); output.scrollTop=output.scrollHeight;
-  };
+  const showSteps = document.getElementById('think-show-steps')?.checked;
+  const selfCritique = document.getElementById('think-self-critique')?.checked;
+  const multiAngle = document.getElementById('think-multi-angle')?.checked;
+  const prosCons = document.getElementById('think-pros-cons')?.checked;
 
-  try{
-    if(S.apiKey && showSteps){
-      addStep('reasoning','Soru Analizi','Sorgu işleniyor, anahtar kavramlar tespit ediliyor...');
-      const analysis=await openaiChat([{role:'system',content:'Türkçe yanıt ver. Bu soruyu 2-3 cümleyle analiz et.'},{role:'user',content:query}],document.getElementById('model-select').value,false);
-      output.lastElementChild.querySelector('.ts-text').innerHTML=renderMarkdown(analysis);
+  let systemPrompt = `Sen bir derin düşünce motorusun. Her soruyu adım adım, mantıksal zincirlerle analiz ediyorsun. Türkçe yanıt ver.
+Şu yapıyı kullan:
+${showSteps ? '## DÜŞÜNCE ADIMI\n[muhakeme]\n' : ''}
+## ANALİZ\n[detaylı analiz]\n
+${multiAngle ? '## FARKLI AÇILAR\n[farklı bakış açıları]\n' : ''}
+${prosCons ? '## ARTILARI VE EKSİLERİ\n[liste halinde]\n' : ''}
+${selfCritique ? '## ÖZ-ELEŞTİRİ\n[zayıf noktalar]\n' : ''}
+## SONUÇ\n[net sonuç]`;
 
-      if(multiAngle){
-        addStep('analysis','Çok Açılı Analiz','Perspektifler değerlendiriliyor...');
-        const angles=await openaiChat([{role:'system',content:'Türkçe. En az 3 farklı perspektiften kısa analiz yap.'},{role:'user',content:query}],document.getElementById('model-select').value,false);
-        output.lastElementChild.querySelector('.ts-text').innerHTML=renderMarkdown(angles);
-      }
-      if(prosCons){
-        addStep('analysis','Artı/Eksi Analizi','Avantajlar ve dezavantajlar...');
-        const pc=await openaiChat([{role:'system',content:'Türkçe. Artılar ve eksiler listesi yap.'},{role:'user',content:query}],document.getElementById('model-select').value,false);
-        output.lastElementChild.querySelector('.ts-text').innerHTML=renderMarkdown(pc);
-      }
-
-      addStep('conclusion','Sonuç ve Yanıt','Sentez yapılıyor...');
-      const final=await openaiChat([{role:'system',content:PERSONALITIES.default},{role:'user',content:query}],document.getElementById('model-select').value,false);
-      output.lastElementChild.querySelector('.ts-text').innerHTML=renderMarkdown(final);
-
-      if(selfCrit){
-        addStep('critique','Öz-Eleştiri','Yanıt sorgulanıyor...');
-        const crit=await openaiChat([{role:'system',content:'Türkçe. Bu yanıtı eleştir, eksiklerini ve güçlü yönlerini belirt.'},{role:'user',content:`Yanıt: ${final}`}],document.getElementById('model-select').value,false);
-        output.lastElementChild.querySelector('.ts-text').innerHTML=renderMarkdown(crit);
-      }
-    } else if(S.apiKey){
-      const resp=await openaiChat([{role:'system',content:PERSONALITIES.default},{role:'user',content:query}],document.getElementById('model-select').value,false);
-      addStep('conclusion','Yanıt',resp);
-    } else {
-      // Demo
-      await delay(600); addStep('reasoning','Analiz',`"${query}" sorusu alındı ve işlendi.`);
-      await delay(600); addStep('analysis','Değerlendirme','Çoklu perspektifler değerlendirildi. Demo modda simüle edilmiş sonuç.');
-      await delay(600); addStep('conclusion','Sonuç','Demo mod: Tam derin analiz için OpenAI API anahtarı gerekli.');
+  try {
+    if (!S.apiKey) {
+      output.innerHTML = renderThinkSteps([
+        { type: 'reasoning', label: 'Düşünce Adımı', text: 'Demo modda temel analiz yapılıyor...' },
+        { type: 'analysis', label: 'Analiz', text: `"${query}" sorusu çok boyutlu bir analiz gerektiriyor. API anahtarı ekleyerek GPT-4o ile tam derin analiz alabilirsiniz.` },
+        { type: 'conclusion', label: 'Sonuç', text: 'Derin analiz için OpenAI API anahtarı gereklidir.' }
+      ]);
+      return;
     }
-  }catch(err){
-    addStep('critique','Hata',`API Hatası: ${err.message}`);
-  } finally{
-    btn.disabled=false; btn.textContent='Derin Analiz Başlat';
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + S.apiKey },
+      body: JSON.stringify({
+        model: document.getElementById('model-select')?.value || 'gpt-4o',
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: query }],
+        max_tokens: 2500,
+        temperature: 0.7
+      })
+    });
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || 'Analiz başarısız.';
+    output.innerHTML = markdownToHtml(text);
+  } catch(e) {
+    output.innerHTML = `<span class="msg-error">Hata: ${e.message}</span>`;
   }
+
+  btn.disabled = false;
 }
 
-// ── SETTINGS ─────────────────────────────
-function changeTheme(v){ document.body.className=v==='quantum'?'':v; }
-function toggleAnimations(){ const e=document.getElementById('anim-toggle').checked; document.querySelectorAll('.ring,.mring,.wc-ring').forEach(el=>el.style.animationPlayState=e?'running':'paused'); }
-function toggleBg(){ document.getElementById('quantum-bg').style.opacity=document.getElementById('bg-toggle').checked?'1':'0'; }
-function exportAllData(){ const d={memory:S.memory,context:S.context.map(c=>({name:c.name,type:c.type,size:c.size})),chatHistory:S.chatHistory,exported:new Date().toISOString()}; const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='arya-ai-backup.json'; a.click(); }
-function deleteAllData(){ if(confirm('TÜM veri silinecek!')){ localStorage.clear(); S.memory=[]; S.context=[]; S.chatHistory=[]; updateMemoryUI(); updateContextUI(); showToast('Tüm veri silindi.'); } }
-
-// ── DEMO RESPONSES ────────────────────────
-function getDemoResponse(text){
-  const l=text.toLowerCase();
-  if(/merhaba|selam|hey/i.test(l)) return 'Merhaba! Ben ARYA AI. Demo moddasınız. Tüm özellikleri açmak için Ayarlar\'dan OpenAI API anahtarınızı ekleyin.';
-  if(/kod|python|javascript|program/i.test(l)) return `Elbette! İşte bir örnek:\n\n\`\`\`python\n# ARYA AI — Demo\ndef quantum_ai(prompt):\n    return f"Yanıt: {prompt[::-1]}"\n\nprint(quantum_ai("Merhaba Dünya"))\n\`\`\`\n\n*Demo mod: Tam yanıtlar için API anahtarı gerekli.*`;
-  if(/kuantum|quantum/i.test(l)) return '**Kuantum Hesaplama**, klasik bilgisayarların 0/1 bitleri yerine **kubitler** kullanan devrimci bir teknolojidir.\n\n- **Süperpozisyon**: Aynı anda 0 ve 1\n- **Dolanıklık**: Anlık iletişim\n- **Girişim**: Hata minimizasyonu\n\n*Demo mod — tam yanıt için API anahtarı ekleyin.*';
-  return `Demo mod yanıtı: "${text.slice(0,50)}..." konusunda size yardımcı olmak isterim.\n\n**Tam güç için:** Ayarlar → OpenAI API Anahtarı → Kaydet\n\nBu adımdan sonra GPT-4o ile gerçek zamanlı, akıllı yanıtlar alırsınız.`;
+function renderThinkSteps(steps) {
+  return steps.map(s =>
+    `<div class="think-step ${s.type}">
+      <div class="ts-label">${s.label}</div>
+      <div class="ts-text">${escHtml(s.text)}</div>
+    </div>`
+  ).join('');
 }
 
-// ── TOAST ─────────────────────────────────
-function showToast(msg, type='ok'){
-  const t=document.createElement('div');
-  t.style.cssText=`position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:10px;font-size:.85rem;font-family:'Inter',sans-serif;max-width:320px;backdrop-filter:blur(12px);animation:msg-in .3s ease;${type==='warn'?'background:rgba(255,170,0,.15);border:1px solid rgba(255,170,0,.4);color:#ffaa00':'background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.3);color:#00d4ff'}`;
-  t.textContent=msg; document.body.appendChild(t);
-  setTimeout(()=>t.remove(),3500);
+/* ---- SETTINGS ---- */
+function changeTheme(theme) {
+  document.body.className = theme === 'quantum' ? '' : theme;
 }
 
-// ── UTILS ─────────────────────────────────
-function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function toggleAnimations() {
+  const on = document.getElementById('anim-toggle')?.checked;
+  document.documentElement.style.setProperty('--anim', on ? '1' : '0');
+}
+
+function toggleBg() {
+  const bg = document.getElementById('quantum-bg');
+  if (bg) bg.style.display = document.getElementById('bg-toggle')?.checked ? '' : 'none';
+}
+
+function openPlayStore() {
+  window.open('https://play.google.com/store/apps/details?id=com.aryaexpansion.aryaai', '_blank');
+}
+
+function exportAllData() {
+  const data = { memory: S.memory, searchHistory: S.searchHistory, trainedContext: S.trainedContext, stats: S.stats, exportDate: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'arya-data-export.json';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function deleteAllData() {
+  if (!confirm('Tüm veriler silinsin mi? Bu işlem geri alınamaz!')) return;
+  localStorage.clear();
+  location.reload();
+}
+
+/* ---- QUANTUM BG ---- */
+function startQuantumBg() {
+  const canvas = document.getElementById('quantum-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let W = canvas.width = window.innerWidth;
+  let H = canvas.height = window.innerHeight;
+
+  const particles = Array.from({ length: 60 }, () => ({
+    x: Math.random() * W, y: Math.random() * H,
+    vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
+    r: Math.random() * 2 + 0.5, opacity: Math.random() * 0.5 + 0.1
+  }));
+
+  window.addEventListener('resize', () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; });
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,212,255,${p.opacity})`;
+      ctx.fill();
+    });
+
+    // connections
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(0,212,255,${0.08 * (1 - dist / 120)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+/* ---- UTILS ---- */
+function markdownToHtml(text) {
+  return text
+    .replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
+      `<pre><code class="lang-${lang}">${escHtml(code.trim())}</code></pre>`)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, s => '<ul>' + s + '</ul>')
+    .replace(/\n{2,}/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, type = 'ok') {
+  const t = document.createElement('div');
+  t.className = `arya-toast ${type}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2800);
+}

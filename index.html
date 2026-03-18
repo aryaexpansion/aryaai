@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARYA AI — Quantum Intelligence</title>
+<title>ARYA AI — Quantum Intelligence by Arya Expansion</title>
 <link rel="stylesheet" href="style.css">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
+
+<!-- QUANTUM BG -->
 <div id="quantum-bg">
   <canvas id="quantum-canvas"></canvas>
   <div class="grid-overlay"></div>
@@ -17,39 +19,144 @@
 <div id="splash">
   <div class="splash-inner">
     <div class="splash-logo">
-      <div class="logo-rings">
-        <div class="ring r1"></div><div class="ring r2"></div>
-        <div class="ring r3"></div><div class="ring r4"></div>
-      </div>
-      <div class="logo-core">
-        <span class="logo-text-arya">ARYA</span>
-        <span class="logo-text-ai">AI</span>
-      </div>
+      <div class="logo-rings"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="ring r4"></div></div>
+      <div class="logo-core"><span class="logo-text-arya">ARYA</span><span class="logo-text-ai">AI</span></div>
     </div>
+    <div class="splash-brand">ARYA EXPANSION</div>
     <div class="splash-tagline">Quantum Intelligence · Next Generation AI</div>
     <div class="splash-bar"><div class="splash-progress"></div></div>
     <div class="splash-status" id="splash-status">Quantum çekirdek başlatılıyor...</div>
   </div>
 </div>
 
-<!-- API KEY SETUP MODAL -->
-<div id="api-modal" class="modal-overlay hidden">
-  <div class="modal-box">
-    <div class="modal-rings">
-      <div class="mring mr1"></div><div class="mring mr2"></div>
+<!-- AUTH MODAL -->
+<div id="auth-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-logo-row">
+      <div class="mini-rings"><div class="mring mr1"></div><div class="mring mr2"></div></div>
+      <span style="font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:700;color:var(--text-primary)">ARYA<span style="color:var(--q-primary)">AI</span></span>
     </div>
-    <h2 class="modal-title">ARYA AI'yı Aktifleştir</h2>
-    <p class="modal-sub">OpenAI API anahtarınızı girerek tüm özellikleri aktif edin. Anahtar yalnızca tarayıcınızda saklanır, hiçbir yere gönderilmez.</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Giriş Yap</button>
+      <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Kayıt Ol</button>
+    </div>
+    <!-- LOGIN -->
+    <div id="auth-login">
+      <div class="auth-field"><label>E-posta</label><input type="email" id="login-email" placeholder="email@örnek.com" class="modal-input"></div>
+      <div class="auth-field"><label>Şifre</label><input type="password" id="login-pass" placeholder="••••••••" class="modal-input"></div>
+      <button class="btn-primary btn-full" onclick="doLogin()" style="margin-top:8px">Giriş Yap</button>
+      <div class="auth-divider">veya</div>
+      <button class="btn-google" onclick="doGoogleLogin()"><img src="https://www.google.com/favicon.ico" width="16" height="16" alt="">Google ile Devam Et</button>
+    </div>
+    <!-- REGISTER -->
+    <div id="auth-register" class="hidden">
+      <div class="auth-field"><label>Ad Soyad</label><input type="text" id="reg-name" placeholder="Adınız Soyadınız" class="modal-input"></div>
+      <div class="auth-field"><label>E-posta</label><input type="email" id="reg-email" placeholder="email@örnek.com" class="modal-input"></div>
+      <div class="auth-field"><label>Şifre</label><input type="password" id="reg-pass" placeholder="En az 8 karakter" class="modal-input"></div>
+      <div class="auth-info-box">
+        <div class="aib-row"><span class="aib-icon">🎁</span><span>Her gün <strong>100 ücretsiz kredi</strong></span></div>
+        <div class="aib-row"><span class="aib-icon">💎</span><span>Pro Plan <strong>399 ₺/ay</strong> ile sınırsız</span></div>
+      </div>
+      <button class="btn-primary btn-full" onclick="doRegister()" style="margin-top:8px">Ücretsiz Kayıt Ol</button>
+    </div>
+    <div class="auth-error hidden" id="auth-error"></div>
+    <div class="modal-links" style="margin-top:14px">
+      <button class="btn-text" onclick="dismissAuth()">Demo modda devam et</button>
+    </div>
+  </div>
+</div>
+
+<!-- API KEY MODAL -->
+<div id="api-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:500px;text-align:center">
+    <div class="modal-rings"><div class="mring mr1"></div><div class="mring mr2"></div></div>
+    <h2 class="modal-title">OpenAI API Anahtarı</h2>
+    <p class="modal-sub">GPT-4o, DALL-E 3 ve Vision özelliklerini aktifleştirin. Anahtarınız yalnızca tarayıcınızda saklanır.</p>
     <div class="modal-input-row">
       <input type="password" id="modal-api-key" placeholder="sk-proj-..." class="modal-input" oninput="validateKeyInput()">
       <button class="btn-primary" onclick="saveApiKeyFromModal()">Aktifleştir</button>
     </div>
-    <div id="modal-key-status"></div>
+    <div id="modal-key-status" style="font-size:.78rem;min-height:20px;margin-bottom:8px"></div>
     <div class="modal-links">
-      <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API anahtarı al →</a>
-      <span class="modal-sep">·</span>
-      <button class="btn-text" onclick="dismissModal()">Demo modda devam et</button>
+      <a href="https://platform.openai.com/api-keys" target="_blank">API anahtarı al →</a>
+      <span style="color:var(--text-muted)">·</span>
+      <button class="btn-text" onclick="dismissApiModal()">Demo modda devam et</button>
     </div>
+  </div>
+</div>
+
+<!-- SUBSCRIPTION MODAL -->
+<div id="sub-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:560px;text-align:center">
+    <h2 class="modal-title">Pro Plana Geç</h2>
+    <p class="modal-sub">Sınırsız AI gücüne erişin</p>
+    <div class="plan-grid">
+      <div class="plan-card">
+        <div class="plan-name">Ücretsiz</div>
+        <div class="plan-price">₺0 <span>/ay</span></div>
+        <ul class="plan-features">
+          <li>✓ 100 kredi/gün</li>
+          <li>✓ GPT-4o Mini</li>
+          <li>✓ 3 görsel/gün</li>
+          <li>✓ Müzik sentezi</li>
+          <li class="dim">✗ GPT-4o tam güç</li>
+          <li class="dim">✗ HD Görsel</li>
+          <li class="dim">✗ Öncelikli yanıt</li>
+        </ul>
+        <button class="btn-q btn-full" onclick="document.getElementById('sub-modal').classList.add('hidden')">Mevcut Plan</button>
+      </div>
+      <div class="plan-card featured">
+        <div class="plan-badge">EN POPÜLER</div>
+        <div class="plan-name">Quantum Pro</div>
+        <div class="plan-price">₺399 <span>/ay</span></div>
+        <ul class="plan-features">
+          <li>✓ Sınırsız kredi</li>
+          <li>✓ GPT-4o tam güç</li>
+          <li>✓ Sınırsız HD görsel</li>
+          <li>✓ Öncelikli yanıt</li>
+          <li>✓ Video üretim</li>
+          <li>✓ Müzik exportu</li>
+          <li>✓ Özel model eğitimi</li>
+        </ul>
+        <button class="btn-primary btn-full" onclick="openPlayStore()">Google Play ile Satın Al</button>
+        <a href="https://play.google.com/store/apps/details?id=com.aryaexpansion.aryaai" target="_blank" class="play-badge-link">
+          <img src="https://play.google.com/intl/en_us/badges/static/images/badges/tr_badge_web_generic.png" alt="Google Play" style="height:36px;margin-top:10px">
+        </a>
+      </div>
+    </div>
+    <button class="btn-text" onclick="document.getElementById('sub-modal').classList.add('hidden')" style="margin-top:16px">Kapat</button>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div id="profile-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:520px">
+    <h2 class="modal-title">Profilim</h2>
+    <div class="profile-header">
+      <div class="profile-avatar-large" id="profile-avatar-large">A</div>
+      <div class="profile-meta">
+        <div class="profile-name" id="profile-name-display">Kullanıcı</div>
+        <div class="profile-email" id="profile-email-display">demo@arya.ai</div>
+        <div class="profile-plan-badge" id="profile-plan-display">Ücretsiz Plan</div>
+      </div>
+    </div>
+    <div class="profile-stats-row">
+      <div class="pstat"><div id="ps-chats">0</div><span>Sohbet</span></div>
+      <div class="pstat"><div id="ps-images">0</div><span>Görsel</span></div>
+      <div class="pstat"><div id="ps-music">0</div><span>Müzik</span></div>
+      <div class="pstat"><div id="ps-days">0</div><span>Gün Aktif</span></div>
+    </div>
+    <div class="profile-section">
+      <h4>Son Aramalar</h4>
+      <div class="search-history" id="search-history"></div>
+    </div>
+    <div class="profile-section">
+      <h4>Abonelik</h4>
+      <div class="sub-info" id="sub-info"></div>
+      <button class="btn-primary small" onclick="document.getElementById('profile-modal').classList.add('hidden');document.getElementById('sub-modal').classList.remove('hidden')">Pro'ya Geç →</button>
+    </div>
+    <button class="btn-text" onclick="document.getElementById('profile-modal').classList.add('hidden')" style="display:block;margin-top:16px;width:100%;text-align:center">Kapat</button>
+    <button class="btn-danger small" onclick="doLogout()" style="margin-top:8px;width:100%">Çıkış Yap</button>
   </div>
 </div>
 
@@ -58,490 +165,428 @@
 
   <!-- API BANNER -->
   <div id="api-banner" class="api-banner hidden">
-    <div class="banner-icon">⚡</div>
-    <span>Demo mod aktif. Tüm özellikleri açmak için OpenAI API anahtarı gerekli.</span>
-    <button class="btn-q small" onclick="showPage('settings'); document.getElementById('openai-key').focus()">API Anahtarı Ekle</button>
+    <span class="banner-icon">⚡</span>
+    <span>Demo mod. Tüm özellikleri açmak için OpenAI API anahtarı gerekli.</span>
+    <button class="btn-q small" onclick="document.getElementById('api-modal').classList.remove('hidden')">API Ekle</button>
     <button class="banner-close" onclick="this.parentElement.classList.add('hidden')">×</button>
   </div>
 
-  <!-- SIDEBAR -->
-  <aside id="sidebar">
-    <div class="sidebar-logo">
-      <div class="mini-rings"><div class="mring mr1"></div><div class="mring mr2"></div></div>
-      <span class="sidebar-brand">ARYA<span class="brand-ai">AI</span></span>
-    </div>
-    <nav class="sidebar-nav">
-      <a class="nav-item active" data-page="chat" onclick="showPage('chat')">
-        <i class="icon-chat"></i><span>Quantum Chat</span>
-        <div class="nav-badge" id="model-badge">GPT-4o</div>
-      </a>
-      <a class="nav-item" data-page="vision" onclick="showPage('vision')">
-        <i class="icon-vision"></i><span>Görsel Analiz</span>
-        <div class="nav-badge">Vision</div>
-      </a>
-      <a class="nav-item" data-page="video" onclick="showPage('video')">
-        <i class="icon-video"></i><span>Video Üretim</span>
-        <div class="nav-badge">DALL-E</div>
-      </a>
-      <a class="nav-item" data-page="music" onclick="showPage('music')">
-        <i class="icon-music"></i><span>Müzik Stüdyo</span>
-        <div class="nav-badge">Audio</div>
-      </a>
-      <a class="nav-item" data-page="memory" onclick="showPage('memory')">
-        <i class="icon-memory"></i><span>Hafıza Merkezi</span>
-      </a>
-      <a class="nav-item" data-page="train" onclick="showPage('train')">
-        <i class="icon-train"></i><span>AI Eğitim</span>
-        <div class="nav-badge">PRO</div>
-      </a>
-      <a class="nav-item" data-page="think" onclick="showPage('think')">
-        <i class="icon-think"></i><span>Derin Düşünce</span>
-      </a>
-      <a class="nav-item" data-page="settings" onclick="showPage('settings')">
-        <i class="icon-settings"></i><span>Ayarlar</span>
-      </a>
-    </nav>
-    <div class="sidebar-stats">
-      <div class="stat-row"><span class="stat-label">AI Motoru</span><span class="stat-value online" id="engine-status">HAZIR</span></div>
-      <div class="stat-row"><span class="stat-label">API</span><span class="stat-value" id="api-stat">Demo</span></div>
-      <div class="stat-row"><span class="stat-label">Hafıza</span><span class="stat-value" id="mem-count">0 kayıt</span></div>
-      <div class="stat-row"><span class="stat-label">Bağlam</span><span class="stat-value" id="ctx-tokens">0 token</span></div>
-    </div>
-    <div class="sidebar-user">
-      <div class="user-avatar"><div class="avatar-glow"></div><span>A</span></div>
-      <div class="user-info">
-        <div class="user-name">ARYA Kullanıcısı</div>
-        <div class="user-plan" id="user-plan">Demo Plan</div>
+  <!-- CREDITS BAR -->
+  <div id="credits-bar" class="credits-bar">
+    <div class="cb-left">
+      <span class="cb-label">Günlük Kredi</span>
+      <div class="cb-progress-wrap">
+        <div class="cb-progress" id="cb-progress"></div>
       </div>
+      <span class="cb-count" id="cb-count">100/100</span>
     </div>
-  </aside>
+    <button class="cb-upgrade" onclick="document.getElementById('sub-modal').classList.remove('hidden')">
+      ⚡ Pro'ya Geç — 399 ₺/ay
+    </button>
+  </div>
 
-  <!-- MAIN -->
-  <main id="main">
-    <div id="topbar">
-      <button id="sidebar-toggle" onclick="toggleSidebar()">
-        <div class="hamburger"><span></span><span></span><span></span></div>
-      </button>
-      <div class="topbar-title" id="page-title">Quantum Chat</div>
-      <div class="topbar-actions">
-        <div class="quantum-indicator"><div class="qi-dot"></div><span id="qi-label">Hazır</span></div>
-        <button class="btn-icon" onclick="clearCurrentPage()">Temizle</button>
-        <button class="btn-icon" onclick="newChat()">+ Yeni</button>
-      </div>
-    </div>
+  <!-- APP BODY: sidebar + main side-by-side -->
+  <div class="app-body">
 
-    <!-- CHAT PAGE -->
-    <div class="page active" id="page-chat">
-      <div class="chat-container">
-        <div class="chat-messages" id="chat-messages">
-          <div class="welcome-card" id="welcome-card">
-            <div class="wc-rings">
-              <div class="wc-ring wcr1"></div><div class="wc-ring wcr2"></div><div class="wc-ring wcr3"></div>
-            </div>
-            <h2 class="wc-title">ARYA AI'ya Hoş Geldiniz</h2>
-            <p class="wc-sub">GPT-4o destekli Quantum Zeka Modeli. Düşünür, görür, duyar ve üretir.</p>
-            <div class="wc-caps">
-              <div class="cap"><span class="cap-icon">◈</span>GPT-4o Streaming</div>
-              <div class="cap"><span class="cap-icon">◈</span>DALL-E 3 Görsel</div>
-              <div class="cap"><span class="cap-icon">◈</span>Vision Analizi</div>
-              <div class="cap"><span class="cap-icon">◈</span>Sesli Yanıt</div>
-              <div class="cap"><span class="cap-icon">◈</span>Sonsuz Hafıza</div>
-              <div class="cap"><span class="cap-icon">◈</span>Quantum Hızı</div>
-            </div>
-            <div class="wc-suggestions">
-              <button class="suggestion-btn" onclick="fillInput('Kuantum hesaplama nedir ve geleceği nasıl şekillendirecek?')">Kuantum hesaplama</button>
-              <button class="suggestion-btn" onclick="fillInput('Python ile bir yapay zeka modeli nasıl eğitilir? Kod örneği ver.')">AI modeli eğit</button>
-              <button class="suggestion-btn" onclick="fillInput('Bana hüzünlü bir şiir yaz.')">Şiir yaz</button>
-              <button class="suggestion-btn" onclick="fillInput('Bir startup için iş planı oluştur.')">İş planı</button>
-            </div>
-          </div>
-        </div>
-        <div class="chat-input-area">
-          <div class="chat-toolbar">
-            <button class="tool-btn" title="Görsel ekle" onclick="document.getElementById('img-upload').click()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-            </button>
-            <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
-            <button class="tool-btn" title="Ses kaydı" id="voice-btn" onclick="toggleVoice()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-            </button>
-            <button class="tool-btn" title="Sesli yanıt" id="tts-btn" onclick="toggleTTS()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-            </button>
-            <button class="tool-btn" title="Derin Düşünce Modu" onclick="toggleThinkMode()" id="think-toggle">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.663 17h4.673M12 3c-4.97 0-9 3.582-9 8 0 2.42 1.072 4.595 2.789 6.134L6 21h12l.211-3.866C19.928 15.595 21 13.42 21 11c0-4.418-4.03-8-9-8z"/></svg>
-            </button>
-            <div class="model-selector">
-              <select id="model-select" onchange="updateModelBadge()">
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                <option value="o1-mini">o1-mini</option>
-              </select>
-            </div>
-          </div>
-          <div class="input-wrapper">
-            <div class="input-glow"></div>
-            <div id="image-preview-chip" class="hidden">
-              <img id="preview-thumb" src="" alt="">
-              <button onclick="removeImagePreview()">×</button>
-            </div>
-            <textarea id="chat-input" placeholder="ARYA AI ile konuşun... Her şey mümkün." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-            <button class="send-btn" id="send-btn" onclick="sendMessage()">
-              <div class="send-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              </div>
-            </button>
-          </div>
-          <div class="input-footer">
-            <span>ARYA AI · <span id="active-model-label">GPT-4o</span> · Web · PC · Mac · Android · iOS</span>
-            <span id="think-mode-label" class="hidden" style="color:var(--q-accent)">◈ Derin Düşünce Aktif</span>
-            <span id="tts-mode-label" class="hidden" style="color:var(--q-primary)">🔊 Sesli Yanıt Aktif</span>
-          </div>
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+      <div class="sidebar-logo">
+        <div class="mini-rings"><div class="mring mr1"></div><div class="mring mr2"></div></div>
+        <div class="sidebar-brand-wrap">
+          <span class="sidebar-brand">ARYA<span class="brand-ai">AI</span></span>
+          <span class="sidebar-subbrand">ARYA EXPANSION</span>
         </div>
       </div>
-    </div>
-
-    <!-- VISION PAGE -->
-    <div class="page" id="page-vision">
-      <div class="page-content">
-        <div class="page-header">
-          <h2>Görsel Analiz & Üretim</h2>
-          <p>GPT-4o Vision ile görselleri anlayın · DALL-E 3 ile yeni görseller üretin</p>
-        </div>
-        <div class="vision-grid">
-          <div class="vision-upload-zone" id="vision-drop" ondragover="event.preventDefault()" ondrop="handleVisionDrop(event)" onclick="document.getElementById('vision-file').click()">
-            <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="56" height="56"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
-            <h3>Görsel Yükleyin</h3>
-            <p>Sürükle & bırak veya tıklayın</p>
-            <small>JPG · PNG · WebP · GIF</small>
-            <input type="file" id="vision-file" accept="image/*" style="display:none" onchange="handleVisionFile(event)">
-          </div>
-          <div class="vision-panel">
-            <div class="vision-preview" id="vision-preview"><div class="preview-placeholder">Görsel yükleyin, AI analiz etsin</div></div>
-            <div class="vision-tools">
-              <button class="btn-q" onclick="visionAction('analyze')">Derin Analiz</button>
-              <button class="btn-q" onclick="visionAction('describe')">Açıkla</button>
-              <button class="btn-q" onclick="visionAction('objects')">Nesneleri Bul</button>
-              <button class="btn-q" onclick="visionAction('text')">Metin Çıkar (OCR)</button>
-              <button class="btn-q" onclick="visionAction('emotion')">Duygu Analizi</button>
-              <button class="btn-q" onclick="visionAction('code')">Koda Çevir</button>
-            </div>
-            <div class="vision-result" id="vision-result"><span style="color:var(--text-muted)">Analiz sonuçları burada görünecek...</span></div>
-          </div>
-        </div>
-        <div class="gen-section">
-          <h3>DALL-E 3 ile Görsel Üret</h3>
-          <div class="gen-input-row">
-            <input type="text" id="image-prompt" placeholder="Görsel tanımı: 'Kuantum şehrinde neon ışıklı gece manzarası, sinematik...'" class="gen-input">
-            <select class="gen-select" id="image-size">
-              <option value="1024x1024">1024×1024</option>
-              <option value="1792x1024">1792×1024 (Geniş)</option>
-              <option value="1024x1792">1024×1792 (Uzun)</option>
-            </select>
-            <select class="gen-select" id="image-quality">
-              <option value="standard">Standard</option>
-              <option value="hd">HD</option>
-            </select>
-            <button class="btn-primary" onclick="generateImage()" id="gen-img-btn">Üret</button>
-          </div>
-          <div class="gen-gallery" id="gen-gallery"></div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" data-page="chat" onclick="showPage('chat')"><i class="icon-chat"></i><span>Quantum Chat</span><div class="nav-badge" id="model-badge">GPT-4o</div></a>
+        <a class="nav-item" data-page="vision" onclick="showPage('vision')"><i class="icon-vision"></i><span>Görsel Analiz</span><div class="nav-badge">Vision</div></a>
+        <a class="nav-item" data-page="video" onclick="showPage('video')"><i class="icon-video"></i><span>Video Üretim</span><div class="nav-badge">DALL-E</div></a>
+        <a class="nav-item" data-page="music" onclick="showPage('music')"><i class="icon-music"></i><span>Müzik Stüdyo</span><div class="nav-badge">AI</div></a>
+        <a class="nav-item" data-page="memory" onclick="showPage('memory')"><i class="icon-memory"></i><span>Hafıza</span></a>
+        <a class="nav-item" data-page="train" onclick="showPage('train')"><i class="icon-train"></i><span>AI Eğitim</span><div class="nav-badge">PRO</div></a>
+        <a class="nav-item" data-page="think" onclick="showPage('think')"><i class="icon-think"></i><span>Derin Düşünce</span></a>
+        <a class="nav-item" data-page="settings" onclick="showPage('settings')"><i class="icon-settings"></i><span>Ayarlar</span></a>
+      </nav>
+      <div class="sidebar-stats">
+        <div class="stat-row"><span class="stat-label">Motor</span><span class="stat-value online" id="engine-status">ONLINE</span></div>
+        <div class="stat-row"><span class="stat-label">API</span><span class="stat-value" id="api-stat">Demo</span></div>
+        <div class="stat-row"><span class="stat-label">Hafıza</span><span class="stat-value" id="mem-count">0 kayıt</span></div>
+        <div class="stat-row"><span class="stat-label">Kredi</span><span class="stat-value" id="credits-stat">100</span></div>
+      </div>
+      <div class="sidebar-user" onclick="openProfile()">
+        <div class="user-avatar"><div class="avatar-glow"></div><span id="avatar-letter">A</span></div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-username">Misafir</div>
+          <div class="user-plan" id="user-plan">Ücretsiz Plan</div>
         </div>
       </div>
-    </div>
+    </aside>
 
-    <!-- VIDEO PAGE -->
-    <div class="page" id="page-video">
-      <div class="page-content">
-        <div class="page-header">
-          <h2>Video Üretim Stüdyosu</h2>
-          <p>DALL-E 3 ile çoklu kare üretimi · Animasyon ve sahne oluşturma</p>
+    <!-- MAIN -->
+    <main id="main">
+      <!-- TOPBAR -->
+      <div id="topbar">
+        <button id="sidebar-toggle" onclick="toggleSidebar()"><div class="hamburger"><span></span><span></span><span></span></div></button>
+        <div class="topbar-title" id="page-title">Quantum Chat</div>
+        <div class="topbar-actions">
+          <div class="quantum-indicator"><div class="qi-dot" id="qi-dot"></div><span id="qi-label">Hazır</span></div>
+          <button class="btn-icon" onclick="document.getElementById('auth-modal').classList.remove('hidden')" id="login-btn">Giriş Yap</button>
+          <button class="btn-icon hidden" onclick="openProfile()" id="profile-btn">Profil</button>
+          <button class="btn-icon" onclick="clearCurrentPage()">Temizle</button>
         </div>
-        <div class="video-studio">
-          <div class="studio-panel">
-            <div class="studio-section">
-              <label>Video Senaryosu / Sahne Açıklaması</label>
-              <textarea id="video-prompt" placeholder="Sahne, atmosfer, karakterler ve kamera hareketi tanımlayın..." rows="5"></textarea>
-            </div>
-            <div class="studio-row">
-              <div class="studio-field"><label>Kare Sayısı</label>
-                <select id="video-frames"><option value="4">4 Kare</option><option value="6" selected>6 Kare</option><option value="8">8 Kare</option></select>
-              </div>
-              <div class="studio-field"><label>Stil</label>
-                <select id="video-style"><option>Sinematik</option><option>Animasyon</option><option>Belgesel</option><option>Müzik Klibi</option><option>Reklam</option></select>
-              </div>
-              <div class="studio-field"><label>Kalite</label>
-                <select id="video-quality"><option value="standard">Standard</option><option value="hd">HD</option></select>
-              </div>
-            </div>
-            <button class="btn-primary btn-full" onclick="generateVideo()" id="gen-video-btn">Video Karelerini Üret</button>
-          </div>
-          <div class="video-preview-panel" id="video-preview">
-            <div class="preview-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" width="56" height="56"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              <p>Video önizlemesi burada</p>
-            </div>
-          </div>
-        </div>
-        <div class="video-progress" id="video-progress" style="display:none">
-          <div class="vp-label">Kareler oluşturuluyor <span id="vp-pct">0%</span></div>
-          <div class="vp-bar"><div class="vp-fill" id="vp-fill"></div></div>
-        </div>
-        <div class="video-frames-grid" id="video-frames-grid"></div>
       </div>
-    </div>
 
-    <!-- MUSIC PAGE -->
-    <div class="page" id="page-music">
-      <div class="page-content">
-        <div class="page-header">
-          <h2>Müzik Stüdyosu</h2>
-          <p>Web Audio API ile gerçek zamanlı müzik sentezi · Tarayıcıda çalışır, API gerektirmez</p>
-        </div>
-        <div class="music-studio">
-          <div class="music-composer">
-            <div class="composer-section">
-              <label>Müzik Açıklaması (AI ile melodi geliştir)</label>
-              <textarea id="music-prompt" placeholder="Örn: Yağmurlu bir sonbahar akşamında hüzünlü piyano melodisi..." rows="3"></textarea>
-            </div>
-            <div class="composer-controls">
-              <div class="cc-field"><label>Tür</label>
-                <select id="music-genre"><option>Klasik</option><option>Pop</option><option>Jazz</option><option>Electronic</option><option>Ambient</option><option>Dramatik</option><option>Huzurlu</option></select>
+      <!-- CHAT PAGE -->
+      <div class="page active" id="page-chat">
+        <div class="chat-container">
+          <div class="chat-messages" id="chat-messages">
+            <div class="welcome-card" id="welcome-card">
+              <div class="wc-rings"><div class="wc-ring wcr1"></div><div class="wc-ring wcr2"></div><div class="wc-ring wcr3"></div></div>
+              <h2 class="wc-title">ARYA AI'ya Hoş Geldiniz</h2>
+              <p class="wc-sub">GPT-4o destekli Quantum Zeka Modeli — Türkçe, akıllı, hızlı.</p>
+              <div class="wc-caps">
+                <div class="cap"><span class="cap-icon">◈</span>GPT-4o Streaming</div>
+                <div class="cap"><span class="cap-icon">◈</span>DALL-E 3 Görsel</div>
+                <div class="cap"><span class="cap-icon">◈</span>Vision Analizi</div>
+                <div class="cap"><span class="cap-icon">◈</span>Türkçe Sesli Yanıt</div>
+                <div class="cap"><span class="cap-icon">◈</span>Sonsuz Hafıza</div>
+                <div class="cap"><span class="cap-icon">◈</span>100 Kredi/Gün</div>
               </div>
-              <div class="cc-field"><label>Tempo <span id="bpm-val">120</span> BPM</label>
-                <input type="range" id="music-bpm" min="40" max="200" value="120" oninput="document.getElementById('bpm-val').textContent=this.value">
+              <div class="wc-suggestions">
+                <button class="suggestion-btn" onclick="fillInput('Kuantum hesaplama nedir ve geleceği nasıl şekillendirecek?')">Kuantum hesaplama</button>
+                <button class="suggestion-btn" onclick="fillInput('Python ile neural network kodu yaz.')">Neural network yaz</button>
+                <button class="suggestion-btn" onclick="fillInput('Bana kısa hüzünlü bir şiir yaz.')">Şiir yaz</button>
+                <button class="suggestion-btn" onclick="fillInput('Yapay zekanın geleceğini anlat.')">AI geleceği</button>
               </div>
-              <div class="cc-field"><label>Ton</label>
-                <select id="music-key"><option value="C">Do Majör</option><option value="G">Sol Majör</option><option value="F">Fa Majör</option><option value="Am">La Minör</option><option value="Em">Mi Minör</option><option value="Dm">Re Minör</option></select>
-              </div>
-              <div class="cc-field"><label>Oktav</label>
-                <select id="music-octave"><option value="3">Bas (3)</option><option value="4" selected>Orta (4)</option><option value="5">Tiz (5)</option></select>
-              </div>
-            </div>
-            <div class="instrument-picker">
-              <label>Enstrüman Seç</label>
-              <div class="instruments" id="instruments">
-                <button class="inst-btn active" data-inst="sine" onclick="toggleInst(this)">Piyano</button>
-                <button class="inst-btn" data-inst="sawtooth" onclick="toggleInst(this)">Synthesizer</button>
-                <button class="inst-btn" data-inst="square" onclick="toggleInst(this)">Organ</button>
-                <button class="inst-btn" data-inst="triangle" onclick="toggleInst(this)">Flüt</button>
-              </div>
-            </div>
-            <div class="music-actions">
-              <button class="btn-primary" onclick="composeAndPlay()" id="compose-btn">Bestele & Çal</button>
-              <button class="btn-q" onclick="stopMusic()" id="stop-music-btn">Durdur</button>
-              <button class="btn-q" onclick="exportMusicWav()">WAV İndir</button>
             </div>
           </div>
-          <div class="music-player-panel">
-            <div class="music-visualizer"><div class="viz-bars" id="viz-bars"></div></div>
-            <div class="music-player">
-              <div class="mp-title" id="mp-title">Henüz müzik yok</div>
-              <div class="mp-sub" id="mp-sub">Bir kompozisyon oluşturun</div>
-              <div class="mp-controls">
-                <button class="mp-btn" onclick="rewindMusic()">⏮</button>
-                <button class="mp-btn mp-play" id="play-btn" onclick="togglePlay()">▶</button>
-                <button class="mp-btn" onclick="composeAndPlay()">⏭</button>
+          <div class="chat-input-area">
+            <div class="chat-toolbar">
+              <button class="tool-btn" title="Görsel ekle" onclick="document.getElementById('img-upload').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              </button>
+              <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+              <button class="tool-btn" title="Sesli giriş" id="voice-btn" onclick="toggleVoice()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              </button>
+              <button class="tool-btn" title="Sesli yanıt" id="tts-btn" onclick="toggleTTS()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              </button>
+              <!-- VOICE GENDER SELECT -->
+              <div class="voice-gender-wrap">
+                <button class="voice-gender-btn active" id="vg-male" onclick="setVoiceGender('male')" title="Erkek Ses">♂</button>
+                <button class="voice-gender-btn" id="vg-female" onclick="setVoiceGender('female')" title="Kadın Ses">♀</button>
               </div>
-              <div class="mp-progress">
-                <span id="mp-current">0:00</span>
-                <div class="mp-bar"><div class="mp-fill" id="mp-fill"></div></div>
-                <span id="mp-total">0:00</span>
-              </div>
-              <div class="mp-vol">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
-                <input type="range" id="vol-slider" min="0" max="100" value="70" oninput="setVolume(this.value)" style="flex:1;accent-color:var(--q-primary)">
+              <button class="tool-btn" title="Derin Düşünce" id="think-toggle" onclick="toggleThinkMode()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.663 17h4.673M12 3c-4.97 0-9 3.582-9 8 0 2.42 1.072 4.595 2.789 6.134L6 21h12l.211-3.866C19.928 15.595 21 13.42 21 11c0-4.418-4.03-8-9-8z"/></svg>
+              </button>
+              <div class="model-selector">
+                <select id="model-select" onchange="updateModelBadge()">
+                  <option value="gpt-4o">GPT-4o</option>
+                  <option value="gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                  <option value="o1-mini">o1-mini</option>
+                </select>
               </div>
             </div>
-            <div class="music-library" id="music-library"></div>
+            <div class="input-wrapper">
+              <div class="input-glow"></div>
+              <div id="image-preview-chip" class="hidden">
+                <img id="preview-thumb" src="" alt=""><button onclick="removeImagePreview()">×</button>
+              </div>
+              <div class="input-row">
+                <textarea id="chat-input" placeholder="ARYA ile konuşun — Türkçe veya herhangi bir dilde..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+                <button class="send-btn" id="send-btn" onclick="sendMessage()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="input-footer">
+              <span>ARYA AI · <span id="active-model-label">GPT-4o</span> · Türk Dil Kurumu uyumlu</span>
+              <span id="think-mode-label" class="hidden" style="color:var(--q-accent)">◈ Derin Düşünce Aktif</span>
+              <span id="tts-mode-label" class="hidden" style="color:var(--q-primary)">🔊 Sesli Yanıt Aktif</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- MEMORY PAGE -->
-    <div class="page" id="page-memory">
-      <div class="page-content">
-        <div class="page-header">
-          <h2>Hafıza Merkezi</h2>
-          <p>ARYA AI'nın sonsuz hafızası. Tüm sohbetler, öğrenmeler ve tercihler.</p>
-        </div>
-        <div class="memory-controls">
-          <input type="text" id="memory-search" placeholder="Hafızada ara..." class="search-input" oninput="searchMemory()">
-          <button class="btn-primary" onclick="addMemory()">+ Ekle</button>
-          <button class="btn-q" onclick="clearMemory()">Temizle</button>
-          <button class="btn-q" onclick="exportMemory()">Dışa Aktar</button>
-        </div>
-        <div class="memory-stats">
-          <div class="mstat"><div class="mstat-val" id="total-mem">0</div><div class="mstat-label">Toplam</div></div>
-          <div class="mstat"><div class="mstat-val" id="chat-mem">0</div><div class="mstat-label">Sohbet</div></div>
-          <div class="mstat"><div class="mstat-val" id="learn-mem">0</div><div class="mstat-label">Öğrenme</div></div>
-          <div class="mstat"><div class="mstat-val" id="pref-mem">0</div><div class="mstat-label">Tercih</div></div>
-          <div class="mstat"><div class="mstat-val" id="ctx-mem">0</div><div class="mstat-label">Bağlam Token</div></div>
-        </div>
-        <div class="memory-list" id="memory-list"><div class="empty-state">Sohbet ettikçe ARYA öğrenir ve hatırlar.</div></div>
-      </div>
-    </div>
-
-    <!-- TRAINING PAGE -->
-    <div class="page" id="page-train">
-      <div class="page-content">
-        <div class="page-header">
-          <h2>AI Eğitim Merkezi</h2>
-          <p>Dosyalarınızı yükleyin — ARYA bunları okur, öğrenir ve sohbetlerde kullanır.</p>
-        </div>
-        <div class="train-grid">
-          <div class="train-card" onclick="document.getElementById('train-text').click()">
-            <div class="tc-icon">📄</div><h3>Metin / Belge</h3>
-            <p>TXT, MD dosyaları</p>
-            <div class="tc-upload"><span>Tıklayın veya sürükleyin</span></div>
-            <input type="file" id="train-text" multiple accept=".txt,.md,.csv" style="display:none" onchange="handleTrainFile(event,'text')">
-            <div class="train-status" id="ts-text">Hazır</div>
-          </div>
-          <div class="train-card" onclick="document.getElementById('train-code').click()">
-            <div class="tc-icon">💻</div><h3>Kaynak Kodu</h3>
-            <p>Herhangi bir programlama dili</p>
-            <div class="tc-upload"><span>Tıklayın veya sürükleyin</span></div>
-            <input type="file" id="train-code" multiple style="display:none" onchange="handleTrainFile(event,'code')">
-            <div class="train-status" id="ts-code">Hazır</div>
-          </div>
-          <div class="train-card" onclick="document.getElementById('train-img-t').click()">
-            <div class="tc-icon">🖼️</div><h3>Görsel Açıklama</h3>
-            <p>GPT-4o Vision ile görseli öğrenir</p>
-            <div class="tc-upload"><span>Tıklayın veya sürükleyin</span></div>
-            <input type="file" id="train-img-t" multiple accept="image/*" style="display:none" onchange="handleTrainImageFile(event)">
-            <div class="train-status" id="ts-image">Hazır</div>
-          </div>
-          <div class="train-card">
-            <div class="tc-icon">✍️</div><h3>Manuel Bağlam</h3>
-            <p>Doğrudan bilgi ekleyin</p>
-            <textarea id="manual-context" placeholder="ARYA'nın bilmesini istediğiniz bilgileri yazın..." style="width:100%;background:rgba(8,16,32,0.9);border:1px solid var(--q-border);border-radius:6px;color:var(--text-primary);padding:10px;font-size:0.82rem;resize:vertical;outline:none;margin-top:8px;" rows="4"></textarea>
-            <button class="btn-primary" style="width:100%;margin-top:8px;" onclick="saveManualContext()">Kaydet</button>
-          </div>
-        </div>
-        <div class="train-context-section">
-          <h3>Yüklenen Bağlam <span id="ctx-size-label" style="color:var(--text-muted);font-weight:400;font-family:'Inter',sans-serif;font-size:0.8rem"></span></h3>
-          <div class="trained-list" id="context-list"><div class="empty-state" style="padding:20px">Henüz bağlam yüklenmedi.</div></div>
-          <button class="btn-danger small" style="margin-top:12px" onclick="clearAllContext()">Tüm Bağlamı Temizle</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- THINK PAGE -->
-    <div class="page" id="page-think">
-      <div class="page-content">
-        <div class="page-header">
-          <h2>Derin Düşünce Motoru</h2>
-          <p>GPT-4o ile adım adım chain-of-thought muhakeme. Her düşünce görünür.</p>
-        </div>
-        <div class="think-interface">
-          <div class="think-input-section">
-            <textarea id="think-query" placeholder="Karmaşık bir soruyu, problemi veya senaryoyu yazın..." rows="5"></textarea>
-            <div class="think-options">
-              <label><input type="checkbox" id="think-show-steps" checked> Düşünce adımlarını göster</label>
-              <label><input type="checkbox" id="think-self-critique"> Öz-eleştiri ve revizyon</label>
-              <label><input type="checkbox" id="think-multi-angle"> Çok açılı analiz</label>
-              <label><input type="checkbox" id="think-pros-cons"> Artı/Eksi analizi</label>
+      <!-- VISION PAGE -->
+      <div class="page" id="page-vision">
+        <div class="page-content">
+          <div class="page-header"><h2>Görsel Analiz & Üretim</h2><p>GPT-4o Vision ile analiz · DALL-E 3 ile üretim</p></div>
+          <div class="vision-grid">
+            <div class="vision-upload-zone" id="vision-drop" ondragover="event.preventDefault()" ondrop="handleVisionDrop(event)" onclick="document.getElementById('vision-file').click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="52" height="52"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              <h3>Görsel Yükle</h3><p>Sürükle & bırak veya tıkla</p>
+              <input type="file" id="vision-file" accept="image/*" style="display:none" onchange="handleVisionFile(event)">
             </div>
-            <button class="btn-primary" onclick="startDeepThink()" id="think-btn">Derin Analiz Başlat</button>
+            <div class="vision-panel">
+              <div class="vision-preview" id="vision-preview"><div class="preview-placeholder">Görsel yükleyin, AI analiz etsin</div></div>
+              <div class="vision-tools">
+                <button class="btn-q" onclick="visionAction('analyze')">Derin Analiz</button>
+                <button class="btn-q" onclick="visionAction('describe')">Açıkla</button>
+                <button class="btn-q" onclick="visionAction('objects')">Nesneler</button>
+                <button class="btn-q" onclick="visionAction('text')">OCR</button>
+                <button class="btn-q" onclick="visionAction('emotion')">Duygu</button>
+                <button class="btn-q" onclick="visionAction('code')">Koda Çevir</button>
+              </div>
+              <div class="vision-result" id="vision-result"><span style="color:var(--text-muted)">Analiz sonuçları burada görünecek...</span></div>
+            </div>
           </div>
-          <div class="think-output" id="think-output">
-            <div class="think-placeholder">Derin düşünce sonuçları burada görüntülenecek...</div>
+          <div class="gen-section">
+            <h3>DALL-E 3 ile Görsel Üret</h3>
+            <div class="gen-input-row">
+              <input type="text" id="image-prompt" placeholder="Görsel tanımı yazın..." class="gen-input">
+              <select class="gen-select" id="image-size"><option value="1024x1024">1024²</option><option value="1792x1024">1792×1024</option><option value="1024x1792">1024×1792</option></select>
+              <select class="gen-select" id="image-quality"><option value="standard">Standard</option><option value="hd">HD</option></select>
+              <button class="btn-primary" onclick="generateImage()" id="gen-img-btn">Üret</button>
+            </div>
+            <div class="gen-gallery" id="gen-gallery"></div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- SETTINGS PAGE -->
-    <div class="page" id="page-settings">
-      <div class="page-content">
-        <div class="page-header"><h2>Ayarlar</h2><p>ARYA AI deneyiminizi kişiselleştirin.</p></div>
-        <div class="settings-grid">
-          <div class="settings-card" style="border-color:rgba(0,212,255,0.4)">
-            <h3 style="color:var(--q-primary)">API Konfigürasyonu</h3>
-            <div class="setting-row">
-              <label>OpenAI API Anahtarı</label>
-              <input type="password" id="openai-key" placeholder="sk-proj-..." class="api-key-input" value="">
-              <button class="btn-primary small" onclick="saveApiKey()">Kaydet</button>
+      <!-- VIDEO PAGE -->
+      <div class="page" id="page-video">
+        <div class="page-content">
+          <div class="page-header"><h2>Video Üretim Stüdyosu</h2><p>DALL-E 3 ile çoklu kare · Sahne animasyonu</p></div>
+          <div class="video-studio">
+            <div class="studio-panel">
+              <div class="studio-section"><label>Senaryo / Sahne</label><textarea id="video-prompt" placeholder="Sahne, atmosfer, karakterler..." rows="5"></textarea></div>
+              <div class="studio-row">
+                <div class="studio-field"><label>Kare</label><select id="video-frames"><option value="4">4</option><option value="6" selected>6</option><option value="8">8</option></select></div>
+                <div class="studio-field"><label>Stil</label><select id="video-style"><option>Sinematik</option><option>Animasyon</option><option>Belgesel</option><option>Müzik Klibi</option></select></div>
+                <div class="studio-field"><label>Kalite</label><select id="video-quality"><option value="standard">SD</option><option value="hd">HD</option></select></div>
+              </div>
+              <button class="btn-primary btn-full" onclick="generateVideo()" id="gen-video-btn">Kareler Üret</button>
             </div>
-            <div class="setting-row">
-              <label>Durum</label>
-              <span id="api-key-status" style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--text-muted)">Yapılandırılmadı</span>
-            </div>
-            <div class="setting-row">
-              <label style="font-size:0.75rem;color:var(--text-muted)">Anahtarınız yalnızca tarayıcınızda (localStorage) saklanır.</label>
-            </div>
-            <div class="setting-row">
-              <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--q-primary);font-size:0.82rem;">OpenAI API anahtarı al →</a>
-            </div>
+            <div class="video-preview-panel" id="video-preview"><div class="preview-placeholder" style="text-align:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" width="48" height="48"><polygon points="5 3 19 12 5 21 5 3"/></svg><p style="margin-top:8px">Önizleme</p></div></div>
           </div>
-          <div class="settings-card">
-            <h3>Model Ayarları</h3>
-            <div class="setting-row"><label>Varsayılan Model</label>
-              <select class="setting-select" id="default-model-setting" onchange="document.getElementById('model-select').value=this.value;updateModelBadge()">
-                <option value="gpt-4o">GPT-4o (En İyi)</option>
-                <option value="gpt-4o-mini">GPT-4o Mini (Hızlı)</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                <option value="o1-mini">o1-mini (Muhakeme)</option>
-              </select>
-            </div>
-            <div class="setting-row"><label>Sıcaklık</label>
-              <input type="range" min="0" max="100" value="70" class="setting-range" id="temp-range" oninput="document.getElementById('temp-val').textContent=(this.value/100).toFixed(1)">
-              <span id="temp-val" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:var(--q-primary);min-width:24px">0.7</span>
-            </div>
-            <div class="setting-row"><label>Sistem Kişiliği</label>
-              <select class="setting-select" id="personality-select">
-                <option value="default">ARYA AI (Varsayılan)</option>
-                <option value="expert">Uzman Asistan</option>
-                <option value="creative">Yaratıcı Yazar</option>
-                <option value="coder">Kod Uzmanı</option>
-                <option value="teacher">Öğretmen</option>
-              </select>
-            </div>
-          </div>
-          <div class="settings-card">
-            <h3>Görünüm</h3>
-            <div class="setting-row"><label>Tema</label>
-              <select class="setting-select" onchange="changeTheme(this.value)">
-                <option value="quantum">Quantum Dark</option>
-                <option value="cyber">Cyber Blue</option>
-                <option value="plasma">Plasma Purple</option>
-                <option value="aurora">Aurora Green</option>
-              </select>
-            </div>
-            <div class="setting-row"><label>Animasyonlar</label><input type="checkbox" class="setting-toggle" checked id="anim-toggle" onchange="toggleAnimations()"></div>
-            <div class="setting-row"><label>Quantum Arka Plan</label><input type="checkbox" class="setting-toggle" checked id="bg-toggle" onchange="toggleBg()"></div>
-            <div class="setting-row"><label>Markdown Render</label><input type="checkbox" class="setting-toggle" checked id="md-toggle"></div>
-          </div>
-          <div class="settings-card">
-            <h3>Ses & Dil</h3>
-            <div class="setting-row"><label>Arayüz Dili</label>
-              <select class="setting-select"><option selected>Türkçe</option><option>English</option><option>Deutsch</option><option>Français</option></select>
-            </div>
-            <div class="setting-row"><label>TTS Sesi</label>
-              <select class="setting-select" id="tts-voice-select"></select>
-            </div>
-            <div class="setting-row"><label>Ses Hızı</label>
-              <input type="range" min="50" max="200" value="100" class="setting-range" id="tts-rate" oninput="document.getElementById('tts-rate-val').textContent=(this.value/100).toFixed(1)+'x'">
-              <span id="tts-rate-val" style="font-size:0.75rem;color:var(--q-primary);min-width:28px">1.0x</span>
-            </div>
-          </div>
-        </div>
-        <div class="version-info">
-          <div class="vi-row"><span>ARYA AI Versiyonu</span><span>v∞.0.0 Quantum</span></div>
-          <div class="vi-row"><span>AI Motoru</span><span id="vi-model">GPT-4o (OpenAI)</span></div>
-          <div class="vi-row"><span>Görsel Üretim</span><span>DALL-E 3</span></div>
-          <div class="vi-row"><span>Müzik Motoru</span><span>Web Audio API (Native)</span></div>
-          <div class="vi-row"><span>Ses Tanıma</span><span>Web Speech API (Native)</span></div>
-          <div class="vi-row"><span>Desteklenen Platformlar</span><span>Web · Windows · macOS · Linux · Android · iOS</span></div>
-          <div class="vi-row"><span>Veriyi Dışa Aktar</span><span><button class="btn-q small" onclick="exportAllData()">JSON İndir</button></span></div>
-          <div class="vi-row"><span>Tüm Veriyi Sil</span><span><button class="btn-danger small" onclick="deleteAllData()">Sil</button></span></div>
+          <div class="video-progress" id="video-progress" style="display:none"><div class="vp-label">Üretiliyor <span id="vp-pct">0%</span></div><div class="vp-bar"><div class="vp-fill" id="vp-fill"></div></div></div>
+          <div class="video-frames-grid" id="video-frames-grid"></div>
         </div>
       </div>
-    </div>
 
-  </main>
-</div>
+      <!-- MUSIC PAGE — Advanced -->
+      <div class="page" id="page-music">
+        <div class="page-content">
+          <div class="page-header"><h2>AI Müzik Stüdyosu</h2><p>Gerçek zamanlı polifonik sentez · Multi-track üretim · 0 gecikme</p></div>
+          <div class="music-studio">
+            <!-- COMPOSER -->
+            <div class="music-left">
+              <div class="music-prompt-area">
+                <label class="section-label">Müzik Fikri (AI ile zenginleştir)</label>
+                <textarea id="music-prompt" placeholder="Örn: Yağmurlu gece hüzünlü piyano, C minör 72bpm..." rows="2"></textarea>
+                <button class="btn-q small" onclick="enhanceMusicPrompt()" id="enhance-btn" style="margin-top:6px;width:100%">✨ AI ile Geliştir</button>
+              </div>
+              <div class="music-params-grid">
+                <div class="mp-param"><label>Tür</label>
+                  <select id="music-genre"><option>Klasik</option><option>Pop</option><option>Jazz</option><option>Electronic</option><option>Ambient</option><option>Dramatik</option><option>Huzurlu</option><option>Blues</option><option>Flamenco</option><option>Orkestra</option></select>
+                </div>
+                <div class="mp-param"><label>Tempo: <span id="bpm-val">120</span></label>
+                  <input type="range" id="music-bpm" min="40" max="200" value="120" oninput="document.getElementById('bpm-val').textContent=this.value;updatePreview()">
+                </div>
+                <div class="mp-param"><label>Ton / Gam</label>
+                  <select id="music-key" onchange="updatePreview()"><option value="C">Do Majör</option><option value="G">Sol Majör</option><option value="F">Fa Majör</option><option value="D">Re Majör</option><option value="Am">La Minör</option><option value="Em">Mi Minör</option><option value="Dm">Re Minör</option><option value="Bm">Si Minör</option></select>
+                </div>
+                <div class="mp-param"><label>Oktav</label>
+                  <select id="music-octave"><option value="3">Bas (3)</option><option value="4" selected>Orta (4)</option><option value="5">Tiz (5)</option></select>
+                </div>
+                <div class="mp-param"><label>Yoğunluk</label>
+                  <select id="music-density"><option value="sparse">Seyrek</option><option value="medium" selected>Orta</option><option value="dense">Yoğun</option></select>
+                </div>
+                <div class="mp-param"><label>Uzunluk</label>
+                  <select id="music-length"><option value="8">Kısa (8 bar)</option><option value="16" selected>Orta (16 bar)</option><option value="32">Uzun (32 bar)</option></select>
+                </div>
+              </div>
+              <!-- INSTRUMENTS MULTI-TRACK -->
+              <div class="track-section">
+                <label class="section-label">Çok Parçalı Katmanlar</label>
+                <div class="tracks-list" id="tracks-list">
+                  <div class="track-item" data-track="melody"><div class="ti-color melody"></div><span>Melodi</span><select class="track-wave"><option value="sine">Piyano</option><option value="triangle">Flüt</option><option value="sawtooth">Synthesizer</option><option value="square">Org</option></select><input type="range" class="track-vol" min="0" max="100" value="80"><span class="ti-toggle active" onclick="toggleTrack(this)">ON</span></div>
+                  <div class="track-item" data-track="harmony"><div class="ti-color harmony"></div><span>Armoni</span><select class="track-wave"><option value="triangle" selected>Strings</option><option value="sine">Piyano</option><option value="sawtooth">Pad</option></select><input type="range" class="track-vol" min="0" max="100" value="50"><span class="ti-toggle active" onclick="toggleTrack(this)">ON</span></div>
+                  <div class="track-item" data-track="bass"><div class="ti-color bass"></div><span>Bas</span><select class="track-wave"><option value="sine" selected>Bas</option><option value="sawtooth">Elektro Bas</option></select><input type="range" class="track-vol" min="0" max="100" value="70"><span class="ti-toggle active" onclick="toggleTrack(this)">ON</span></div>
+                  <div class="track-item" data-track="drums"><div class="ti-color drums"></div><span>Ritim</span><select class="track-wave"><option value="noise" selected>Davul</option><option value="click">Metronom</option></select><input type="range" class="track-vol" min="0" max="100" value="60"><span class="ti-toggle" onclick="toggleTrack(this)">OFF</span></div>
+                  <div class="track-item" data-track="pad"><div class="ti-color pad"></div><span>Atmosphere</span><select class="track-wave"><option value="sine" selected>Pad</option><option value="triangle">Ethereal</option></select><input type="range" class="track-vol" min="0" max="100" value="30"><span class="ti-toggle" onclick="toggleTrack(this)">OFF</span></div>
+                </div>
+              </div>
+              <!-- EFFECTS -->
+              <div class="effects-section">
+                <label class="section-label">Efektler</label>
+                <div class="effects-grid">
+                  <div class="eff-knob"><label>Reverb</label><input type="range" id="fx-reverb" min="0" max="100" value="30" class="eff-range"></div>
+                  <div class="eff-knob"><label>Delay</label><input type="range" id="fx-delay" min="0" max="100" value="10" class="eff-range"></div>
+                  <div class="eff-knob"><label>Chorus</label><input type="range" id="fx-chorus" min="0" max="100" value="20" class="eff-range"></div>
+                  <div class="eff-knob"><label>Distortion</label><input type="range" id="fx-dist" min="0" max="100" value="0" class="eff-range"></div>
+                </div>
+              </div>
+              <div class="music-action-row">
+                <button class="btn-primary" onclick="composeAndPlay()" id="compose-btn">▶ Bestele & Çal</button>
+                <button class="btn-q" onclick="stopMusic()">■ Durdur</button>
+                <button class="btn-q" onclick="loopToggle()" id="loop-btn">↺ Loop</button>
+              </div>
+            </div>
+            <!-- PLAYER RIGHT -->
+            <div class="music-right">
+              <div class="music-visualizer-wrap">
+                <canvas id="music-canvas" width="400" height="100"></canvas>
+                <div class="viz-type-btns">
+                  <button class="vt-btn active" onclick="setVizType('bars',this)">Bars</button>
+                  <button class="vt-btn" onclick="setVizType('wave',this)">Wave</button>
+                  <button class="vt-btn" onclick="setVizType('circle',this)">Circle</button>
+                </div>
+              </div>
+              <div class="piano-roll" id="piano-roll"></div>
+              <div class="music-player">
+                <div class="mp-title" id="mp-title">Henüz müzik yok</div>
+                <div class="mp-sub" id="mp-sub">Parametreleri ayarlayın ve Bestele'ye basın</div>
+                <div class="mp-controls">
+                  <button class="mp-btn" onclick="rewindMusic()">⏮</button>
+                  <button class="mp-btn mp-play" id="play-btn" onclick="togglePlay()">▶</button>
+                  <button class="mp-btn" onclick="skipForward()">⏭</button>
+                </div>
+                <div class="mp-progress">
+                  <span id="mp-current">0:00</span>
+                  <div class="mp-bar" onclick="seekMusic(event)"><div class="mp-fill" id="mp-fill"></div></div>
+                  <span id="mp-total">0:00</span>
+                </div>
+                <div class="mp-vol-row">
+                  <span style="font-size:.7rem;color:var(--text-muted)">Vol</span>
+                  <input type="range" id="vol-slider" min="0" max="100" value="70" oninput="setVolume(this.value)" style="flex:1;accent-color:var(--q-primary)">
+                  <span id="vol-val" style="font-size:.7rem;color:var(--q-primary);min-width:28px">70%</span>
+                </div>
+              </div>
+              <div class="music-library" id="music-library"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEMORY PAGE -->
+      <div class="page" id="page-memory">
+        <div class="page-content">
+          <div class="page-header"><h2>Hafıza Merkezi</h2><p>Sonsuz bağlam hafızası · Arama geçmişi · Öğrenme arşivi</p></div>
+          <div class="memory-controls">
+            <input type="text" id="memory-search" placeholder="Hafızada ara..." class="search-input" oninput="searchMemory()">
+            <button class="btn-primary" onclick="addMemory()">+ Ekle</button>
+            <button class="btn-q" onclick="clearMemory()">Temizle</button>
+            <button class="btn-q" onclick="exportMemory()">Dışa Aktar</button>
+          </div>
+          <div class="memory-stats">
+            <div class="mstat"><div class="mstat-val" id="total-mem">0</div><div class="mstat-label">Toplam</div></div>
+            <div class="mstat"><div class="mstat-val" id="chat-mem">0</div><div class="mstat-label">Sohbet</div></div>
+            <div class="mstat"><div class="mstat-val" id="learn-mem">0</div><div class="mstat-label">Öğrenme</div></div>
+            <div class="mstat"><div class="mstat-val" id="pref-mem">0</div><div class="mstat-label">Tercih</div></div>
+            <div class="mstat"><div class="mstat-val" id="ctx-mem">0</div><div class="mstat-label">Bağlam</div></div>
+          </div>
+          <div class="memory-list" id="memory-list"><div class="empty-state">Sohbet ettikçe ARYA öğrenir.</div></div>
+        </div>
+      </div>
+
+      <!-- TRAINING PAGE -->
+      <div class="page" id="page-train">
+        <div class="page-content">
+          <div class="page-header"><h2>AI Eğitim Merkezi</h2><p>Dosyalarınızı yükleyin — ARYA okur, öğrenir, sohbette kullanır.</p></div>
+          <div class="train-grid">
+            <div class="train-card" onclick="document.getElementById('train-text').click()"><div class="tc-icon">📄</div><h3>Metin / Belge</h3><p>TXT, MD, CSV</p><div class="tc-upload"><span>Yükle</span></div><input type="file" id="train-text" multiple accept=".txt,.md,.csv" style="display:none" onchange="handleTrainFile(event,'text')"><div class="train-status" id="ts-text">Hazır</div></div>
+            <div class="train-card" onclick="document.getElementById('train-code').click()"><div class="tc-icon">💻</div><h3>Kaynak Kodu</h3><p>Herhangi bir dil</p><div class="tc-upload"><span>Yükle</span></div><input type="file" id="train-code" multiple style="display:none" onchange="handleTrainFile(event,'code')"><div class="train-status" id="ts-code">Hazır</div></div>
+            <div class="train-card" onclick="document.getElementById('train-img-t').click()"><div class="tc-icon">🖼️</div><h3>Görsel Eğitim</h3><p>GPT-4o Vision ile</p><div class="tc-upload"><span>Yükle</span></div><input type="file" id="train-img-t" multiple accept="image/*" style="display:none" onchange="handleTrainImageFile(event)"><div class="train-status" id="ts-image">Hazır</div></div>
+            <div class="train-card"><div class="tc-icon">✍️</div><h3>Manuel Bağlam</h3><p>Doğrudan bilgi ekle</p><textarea id="manual-context" placeholder="ARYA'nın bilmesini istediğiniz bilgileri yazın..." class="manual-ctx-input" rows="4"></textarea><button class="btn-primary small" style="width:100%;margin-top:8px" onclick="saveManualContext()">Kaydet</button></div>
+          </div>
+          <div class="train-context-section"><h3>Yüklü Bağlam <span id="ctx-size-label" style="color:var(--text-muted);font-weight:400;font-size:.78rem"></span></h3><div class="trained-list" id="context-list"><div class="empty-state" style="padding:16px">Henüz bağlam yüklenmedi.</div></div><button class="btn-danger small" style="margin-top:12px" onclick="clearAllContext()">Tümünü Temizle</button></div>
+        </div>
+      </div>
+
+      <!-- THINK PAGE -->
+      <div class="page" id="page-think">
+        <div class="page-content">
+          <div class="page-header"><h2>Derin Düşünce Motoru</h2><p>GPT-4o ile adım adım chain-of-thought muhakeme</p></div>
+          <div class="think-interface">
+            <div class="think-input-section">
+              <textarea id="think-query" placeholder="Karmaşık sorunuzu veya probleminizi yazın..." rows="5"></textarea>
+              <div class="think-options">
+                <label><input type="checkbox" id="think-show-steps" checked> Düşünce adımları</label>
+                <label><input type="checkbox" id="think-self-critique"> Öz-eleştiri</label>
+                <label><input type="checkbox" id="think-multi-angle"> Çok açılı analiz</label>
+                <label><input type="checkbox" id="think-pros-cons"> Artı/Eksi</label>
+              </div>
+              <button class="btn-primary btn-full" onclick="startDeepThink()" id="think-btn">Derin Analiz Başlat</button>
+            </div>
+            <div class="think-output" id="think-output"><div class="think-placeholder">Sonuçlar burada görüntülenecek...</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS PAGE -->
+      <div class="page" id="page-settings">
+        <div class="page-content">
+          <div class="page-header"><h2>Ayarlar</h2><p>ARYA AI deneyiminizi kişiselleştirin.</p></div>
+          <div class="settings-grid">
+            <div class="settings-card" style="border-color:rgba(0,212,255,.4)">
+              <h3 style="color:var(--q-primary)">OpenAI API</h3>
+              <div class="setting-row"><label>API Anahtarı</label><input type="password" id="openai-key" placeholder="sk-proj-..." class="api-key-input"><button class="btn-primary small" onclick="saveApiKey()">Kaydet</button></div>
+              <div class="setting-row"><label>Durum</label><span id="api-key-status" style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--text-muted)">Yapılandırılmadı</span></div>
+              <div class="setting-row"><a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--q-primary);font-size:.82rem">API anahtarı al →</a></div>
+            </div>
+            <div class="settings-card">
+              <h3>Model Ayarları</h3>
+              <div class="setting-row"><label>Varsayılan Model</label><select class="setting-select" onchange="document.getElementById('model-select').value=this.value;updateModelBadge()"><option value="gpt-4o">GPT-4o</option><option value="gpt-4o-mini">GPT-4o Mini</option><option value="gpt-4-turbo">GPT-4 Turbo</option></select></div>
+              <div class="setting-row"><label>Sıcaklık</label><input type="range" min="0" max="100" value="70" class="setting-range" id="temp-range" oninput="document.getElementById('temp-val').textContent=(this.value/100).toFixed(1)"><span id="temp-val" style="font-size:.75rem;color:var(--q-primary);min-width:24px">0.7</span></div>
+              <div class="setting-row"><label>Kişilik</label><select class="setting-select" id="personality-select"><option value="default">ARYA AI (Türkçe)</option><option value="expert">Uzman</option><option value="creative">Yaratıcı</option><option value="coder">Kod Uzmanı</option></select></div>
+            </div>
+            <div class="settings-card">
+              <h3>Ses Ayarları</h3>
+              <div class="setting-row"><label>Cinsiyet</label>
+                <div style="display:flex;gap:8px">
+                  <button class="voice-gender-btn active" id="sg-male" onclick="setVoiceGender('male');document.getElementById('sg-female').classList.remove('active');this.classList.add('active')">♂ Erkek</button>
+                  <button class="voice-gender-btn" id="sg-female" onclick="setVoiceGender('female');document.getElementById('sg-male').classList.remove('active');this.classList.add('active')">♀ Kadın</button>
+                </div>
+              </div>
+              <div class="setting-row"><label>Ses Hızı</label><input type="range" min="50" max="200" value="95" class="setting-range" id="tts-rate" oninput="document.getElementById('tts-rate-val').textContent=(this.value/100).toFixed(1)+'x'"><span id="tts-rate-val" style="font-size:.75rem;color:var(--q-primary);min-width:28px">0.95x</span></div>
+              <div class="setting-row"><label>Ses Tonu</label><input type="range" min="50" max="150" value="100" class="setting-range" id="tts-pitch" oninput="document.getElementById('tts-pitch-val').textContent=this.value"><span id="tts-pitch-val" style="font-size:.75rem;color:var(--q-primary);min-width:24px">100</span></div>
+            </div>
+            <div class="settings-card">
+              <h3>Görünüm</h3>
+              <div class="setting-row"><label>Tema</label><select class="setting-select" onchange="changeTheme(this.value)"><option value="quantum">Quantum Dark</option><option value="cyber">Cyber Blue</option><option value="plasma">Plasma Purple</option><option value="aurora">Aurora Green</option></select></div>
+              <div class="setting-row"><label>Animasyonlar</label><input type="checkbox" class="setting-toggle" checked id="anim-toggle" onchange="toggleAnimations()"></div>
+              <div class="setting-row"><label>Quantum Arka Plan</label><input type="checkbox" class="setting-toggle" checked id="bg-toggle" onchange="toggleBg()"></div>
+            </div>
+          </div>
+          <div class="version-info">
+            <div class="vi-row"><span>ARYA AI Versiyonu</span><span>v∞.0.0 Quantum</span></div>
+            <div class="vi-row"><span>Geliştirici</span><span>Arya Expansion Software</span></div>
+            <div class="vi-row"><span>AI Motoru</span><span id="vi-model">GPT-4o (OpenAI)</span></div>
+            <div class="vi-row"><span>Müzik Motoru</span><span>Web Audio API Quantum Engine</span></div>
+            <div class="vi-row"><span>Desteklenen Platformlar</span><span>Web · Windows · macOS · Android · iOS</span></div>
+            <div class="vi-row"><span>Google Play</span><span><a href="https://play.google.com/store/apps/details?id=com.aryaexpansion.aryaai" target="_blank" style="color:var(--q-primary)">Play Store'da İndir →</a></span></div>
+            <div class="vi-row"><span>Veriyi Dışa Aktar</span><span><button class="btn-q small" onclick="exportAllData()">JSON İndir</button></span></div>
+            <div class="vi-row"><span>Tüm Veriyi Sil</span><span><button class="btn-danger small" onclick="deleteAllData()">Sil</button></span></div>
+          </div>
+        </div>
+      </div>
+
+    </main><!-- /main -->
+  </div><!-- /app-body -->
+
+  <!-- FOOTER -->
+  <footer id="app-footer">
+    <div class="footer-inner">
+      <div class="footer-logo">
+        <div class="footer-rings"><div class="mring mr1"></div><div class="mring mr2"></div></div>
+        <span class="footer-brand">ARYA<span>AI</span></span>
+      </div>
+      <div class="footer-links">
+        <a href="#" onclick="showPage('settings')">Ayarlar</a>
+        <a href="https://play.google.com/store/apps/details?id=com.aryaexpansion.aryaai" target="_blank">Google Play</a>
+        <a href="#" onclick="document.getElementById('sub-modal').classList.remove('hidden')">Pro Plan</a>
+      </div>
+      <div class="footer-copy">
+        Geliştirici: <a href="https://aryaexpansion.com" target="_blank">Arya Expansion Software</a> · © 2025 Tüm hakları saklıdır.
+      </div>
+    </div>
+  </footer>
+
+</div><!-- /app -->
 
 <script src="app.js"></script>
 </body>
