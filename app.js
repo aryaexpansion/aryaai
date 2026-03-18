@@ -342,8 +342,18 @@ function refreshCreditsBar() {
 
 function refreshSidebarStats() {
   document.getElementById('mem-count').textContent = S.memory.length + ' kayıt';
-  document.getElementById('api-stat').textContent = S.apiKey ? 'Aktif' : 'Demo';
+  document.getElementById('api-stat').textContent = S.apiKey ? 'Aktif' : 'KB Modu';
   if (S.apiKey) document.getElementById('api-stat').style.color = 'var(--success)';
+  // Mind stats
+  if (window.getMindStats) {
+    const ms = window.getMindStats();
+    const engineEl = document.getElementById('engine-status');
+    if (engineEl && !ms.ready && !ms.loading) {
+      engineEl.style.cursor = 'pointer';
+      engineEl.title = 'Tıkla: AI modeli indir';
+      engineEl.onclick = () => window.loadMindModel && window.loadMindModel();
+    }
+  }
 }
 
 /* ---- PAGES ---- */
@@ -468,6 +478,15 @@ async function sendMessage() {
 }
 
 async function callOpenAI(text, imgBase64) {
+  // 1. Yerel Quantum AI motoru (API key gerektirmez)
+  if (!imgBase64 && window.aryaMindAnswer) {
+    try {
+      const mindReply = await window.aryaMindAnswer(text);
+      if (mindReply && mindReply.length > 5) return mindReply;
+    } catch(e) { console.warn('Mind engine error:', e.message); }
+  }
+
+  // 2. OpenAI API (isteğe bağlı — görsel analiz veya bonus güç)
   if (!S.apiKey) return getDemoReply(text);
 
   const model = document.getElementById('model-select')?.value || 'gpt-4o';
