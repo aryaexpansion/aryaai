@@ -1,0 +1,33 @@
+name = "arya-live-agent"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# Ana uygulamanın kullandığı D1 veritabanı (aynı veritabanı bağlanmalı).
+# database_id değerini Cloudflare panelinden alıp buraya yazın.
+[[d1_databases]]
+binding = "DB"
+database_name = "aryalive"
+database_id = "BURAYA_D1_DATABASE_ID"
+
+# Zamanlanmış görevler (UTC):
+#  - her 5 dakikada: canlı yayın ve ödeme kontrolü
+#  - her gün 21:00 UTC (TR 00:00): günlük rapor
+[triggers]
+crons = ["*/5 * * * *", "0 21 * * *"]
+
+[vars]
+AGENT_MODEL = "claude-sonnet-5-5"
+# Bu jeton miktarının üzerindeki tek aktarımlar uyarı üretir.
+LARGE_TRANSFER_COINS = "5000"
+# Bekleyen ödeme bu kadar dakika sonra şüpheli sayılır.
+PENDING_PAYMENT_MINUTES = "30"
+# Bir yayın bu kadar şikâyet alınca admin'e acil uyarı gider.
+STREAM_REPORT_THRESHOLD = "5"
+
+# Gizli değerler (wrangler secret put ile girilir, dosyaya YAZILMAZ):
+#   ANTHROPIC_API_KEY      - Claude API anahtarı
+#   CF_ACCOUNT_ID          - Cloudflare hesap kimliği
+#   CF_STREAM_TOKEN        - yalnızca Stream yetkili API token'ı
+#   STREAM_WEBHOOK_SECRET  - Stream webhook imza anahtarı
+#   INTERNAL_TOKEN         - ana uygulamanın bu servise erişim anahtarı
+#   ADMIN_TOKEN            - admin panelin bu servise erişim anahtarı

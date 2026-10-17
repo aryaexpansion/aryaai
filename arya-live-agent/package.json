@@ -1,0 +1,14 @@
+{
+  "name": "arya-live-agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:core": "wrangler d1 execute aryalive --remote --file=schema/core.sql",
+    "db:agent": "wrangler d1 execute aryalive --remote --file=schema/agent.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
