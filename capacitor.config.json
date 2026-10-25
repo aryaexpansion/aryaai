@@ -1,0 +1,9 @@
+{
+  "appId": "com.aryaexpansion.aryaai",
+  "appName": "ARYA AI",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#05060f"
+  }
+}

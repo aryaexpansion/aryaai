@@ -520,3 +520,7 @@ body.aurora{--q-primary:#10b981;--q-accent:#0891b2;--bg-deep:#010d08}
   .credits-bar{padding:0 12px;gap:8px}
   .cb-upgrade{font-size:.58rem;padding:3px 8px}
 }
+
+/* ---- iOS (App Store) ---- */
+.platform-ios .hide-on-ios { display: none !important; }
+.platform-ios body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }

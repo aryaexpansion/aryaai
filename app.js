@@ -179,6 +179,7 @@ function doRegister() {
 }
 
 function doGoogleLogin() {
+  if (document.documentElement.classList.contains('platform-ios')) return;
   const name = 'Google Kullanıcısı';
   const email = 'user@gmail.com';
   S.user = { name, email, plan: 'free' };
@@ -317,6 +318,10 @@ function dismissApiModal() {
 function useCredit(amount) {
   if (S.user && S.user.plan === 'pro') return true;
   if (S.credits < amount) {
+    if (document.documentElement.classList.contains('platform-ios')) {
+      toast('Günlük krediniz bitti, yarın yenilenecek.', 'warn');
+      return false;
+    }
     toast('Yetersiz kredi! Pro plana geçin.', 'warn');
     document.getElementById('sub-modal').classList.remove('hidden');
     return false;
@@ -1511,6 +1516,8 @@ function toggleBg() {
 }
 
 function openPlayStore() {
+  // App Store 3.1.1: harici ödeme yönlendirmesi iOS'ta yasak
+  if (document.documentElement.classList.contains('platform-ios')) return;
   window.open('https://play.google.com/store/apps/details?id=com.aryaexpansion.aryaai', '_blank');
 }
 
